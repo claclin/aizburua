@@ -2,7 +2,7 @@ param(
     [string]$RegataName = "Getxo"
 )
 
-$root = "c:\Proyectos\Aizburua"
+$root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $dataPath = "$root\data"
 $informesPath = "$root\informes"
 $remerosImgPath = "$root\remeros"

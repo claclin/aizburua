@@ -1,7 +1,7 @@
 param([Parameter(Mandatory = $true)][string]$RegataName)
 # Set-StrictMode -Version Latest # Deshabilitado para permitir acceso flexible a propiedades JSON opcionales
 $ErrorActionPreference = "Stop"
-$rootPath = Resolve-Path (Join-Path $PSScriptRoot "..\..\..\..") 
+$rootPath = Resolve-Path (Join-Path $PSScriptRoot "..") 
 $jsonPath = Join-Path $rootPath "data\historico-regatas.json"
 $plantillaPath = Join-Path $rootPath "data\plantilla_remeros.json"
 $remerosPath = Join-Path $rootPath "remeros"
@@ -237,7 +237,7 @@ foreach ($prop in $callesProps) {
         $cResults = $g1.resultados | Where-Object { [int]$_.calle -eq $cId }
         if ($cResults) {
             $avg = [math]::Round(($cResults | ForEach-Object { TS $_.tiempo_raw } | Measure-Object -Average).Average, 1)
-            $dif = [math]::Round($avg - $avgAllG1, 1)
+            $dif = [math]::Round($avg - $avgG1, 1)
             $difStr = "${dif}s"
             if ($dif -gt 0) { $difStr = "+${dif}s" }
             $lanesData[$cId] = @{ 

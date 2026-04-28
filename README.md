@@ -30,14 +30,15 @@ Sistema de puntuación de 0 a 100 para la selección de sustitutos, que valora:
 
 ## Estructura del Proyecto
 
-*   `Base Conocimiento/`: Documentación técnica sobre posiciones, fisiología del remo y reglamentación.
-*   `data/`: Bases de datos en JSON (plantilla de remeros, histórico de regatas).
-*   `scripts/`: El núcleo lógico en PowerShell (`generar_comparativa.ps1`).
-*   `informes/`: Reportes HTML generados con visualización profesional de métricas.
+*   **`data/`**: Bases de datos en JSON (plantilla de remeros, histórico de regatas).
+*   **`scripts/`**: El núcleo lógico del motor táctico v4.0.
+*   **`Base Conocimiento/`**: Documentación estratégica y el nuevo `Protocolo_Analisis_Tactico.md`.
+*   **`remeros/`**: Galería fotográfica de la tripulación para los informes.
+*   **`informes/`**: Reportes HTML generados (excluidos de Git por defecto).
 
 ## Cómo Utilizar
 
-Para generar un análisis de una regata específica, ejecuta el script principal desde PowerShell:
+Para generar un análisis de una regata específica, ejecuta el script principal desde la raíz del proyecto:
 
 ```powershell
 .\scripts\generar_comparativa.ps1 -RegataName "Getxo"

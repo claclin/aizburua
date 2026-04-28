@@ -1,5 +1,6 @@
 .gemini/
-.agents/
+#.agents/
 *.log
 informes/*.html
 !informes/.gitkeep
+!.agents/skills/generador-informes/SKILL.md

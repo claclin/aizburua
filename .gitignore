@@ -1,0 +1,5 @@
+.gemini/
+.agents/
+*.log
+informes/*.html
+!informes/.gitkeep

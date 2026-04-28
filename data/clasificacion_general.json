@@ -1,0 +1,41 @@
+{
+  "temporada": "2026",
+  "liga": "Liga AKK - Categoria A",
+  "regatas_disputadas": 1,
+  "regatas_totales": 10,
+  "clasificacion_global": [
+    { "club": "GETXO", "puntos": 12 },
+    { "club": "BADOK", "puntos": 11 },
+    { "club": "MUNDAKA", "puntos": 10 },
+    { "club": "ZUMAIA", "puntos": 9 },
+    { "club": "IBERIA", "puntos": 8 },
+    { "club": "PLENTZIA", "puntos": 7 },
+    { "club": "PONTEJOS", "puntos": 6 },
+    { "club": "FORTUNA", "puntos": 5 },
+    { "club": "ILLUNBE", "puntos": 4 },
+    { "club": "AIZBURUA", "puntos": 3 },
+    { "club": "BILBAO", "puntos": 2 },
+    { "club": "SANTURTZI", "puntos": 1 }
+  ],
+  "historial_regatas": [
+    {
+      "nombre_corto": "Getxo",
+      "nombre_oficial": "GETXOKO XXIII BETERANOEN TRAINERU ESTROPADA",
+      "fecha": "2026-04-19",
+      "puntos_asignados": {
+        "GETXO": 12,
+        "BADOK": 11,
+        "MUNDAKA": 10,
+        "ZUMAIA": 9,
+        "IBERIA": 8,
+        "PLENTZIA": 7,
+        "PONTEJOS": 6,
+        "FORTUNA": 5,
+        "ILLUNBE": 4,
+        "AIZBURUA": 3,
+        "BILBAO": 2,
+        "SANTURTZI": 1
+      }
+    }
+  ]
+}

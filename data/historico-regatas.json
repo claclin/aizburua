@@ -12,14 +12,28 @@
       "condiciones_campo": {
         "geometria": {
           "eje": "Muelle -> San Inazio",
-          "calle1": {"color": "Blanca", "posicion": "Exterior / Rio"},
-          "calle2": {"color": "Roja", "posicion": "Interior / Playa"}
+          "calle1": {
+            "color": "Blanca",
+            "posicion": "Exterior / Rio"
+          },
+          "calle2": {
+            "color": "Roja",
+            "posicion": "Interior / Playa"
+          }
         },
         "temperatura_aire_c": 15,
         "temperatura_agua_c": 14.5,
         "salinidad_psu": 34.85,
-        "viento": { "velocidad_kmh": 16, "direccion": "NE", "fuerza_beaufort": 3 },
-        "olas": { "altura_m": 1.5, "direccion": "NW", "tipo": "Mar de fondo" },
+        "viento": {
+          "velocidad_kmh": 16,
+          "direccion": "NE",
+          "fuerza_beaufort": 3
+        },
+        "olas": {
+          "altura_m": 1.5,
+          "direccion": "NW",
+          "tipo": "Mar de fondo"
+        },
         "marea": {
           "coeficiente": 62,
           "pleamar_1": "06:22",
@@ -27,10 +41,38 @@
           "estado_en_regata": "Vaciante Fuerte"
         },
         "evolucion_meteo": [
-          {"hora": "10:30", "viento_kmh": 10, "viento_dir": "NE", "ola_m": 1.0, "corriente": "Vaciante Leve", "desc": "Inicio G2"},
-          {"hora": "11:00", "viento_kmh": 14, "viento_dir": "NE", "ola_m": 1.3, "corriente": "Vaciante Fuerte", "desc": "T1 Aizburua"},
-          {"hora": "11:15", "viento_kmh": 16, "viento_dir": "NE", "ola_m": 1.4, "corriente": "Vaciante Maxima", "desc": "T3 Intermedia"},
-          {"hora": "11:30", "viento_kmh": 20, "viento_dir": "NE", "ola_m": 1.5, "corriente": "Vaciante persistente", "desc": "T6 Final"}
+          {
+            "hora": "10:30",
+            "viento_kmh": 10,
+            "viento_dir": "NE",
+            "ola_m": 1.0,
+            "corriente": "Vaciante Leve",
+            "desc": "Inicio G2"
+          },
+          {
+            "hora": "11:00",
+            "viento_kmh": 14,
+            "viento_dir": "NE",
+            "ola_m": 1.3,
+            "corriente": "Vaciante Fuerte",
+            "desc": "T1 Aizburua"
+          },
+          {
+            "hora": "11:15",
+            "viento_kmh": 16,
+            "viento_dir": "NE",
+            "ola_m": 1.4,
+            "corriente": "Vaciante Maxima",
+            "desc": "T3 Intermedia"
+          },
+          {
+            "hora": "11:30",
+            "viento_kmh": 20,
+            "viento_dir": "NE",
+            "ola_m": 1.5,
+            "corriente": "Vaciante persistente",
+            "desc": "T6 Final"
+          }
         ]
       },
       "grupos": {
@@ -42,16 +84,116 @@
           "tiempo_ganador_raw": "13:04,3",
           "tiempo_ganador_final": "12:58,9",
           "resultados": [
-            {"puesto": 1, "tanda": 2, "calle": 2, "hora_salida": "10:33", "club": "CASTREÑA",      "handicap": "00:05,4", "ciaboga_1": "06:10,0", "tiempo_raw": "13:04,3", "tiempo_final": "12:58,9"},
-            {"puesto": 2, "tanda": 5, "calle": 2, "hora_salida": "10:39", "club": "ZUMAIA B",      "handicap": "00:27,9", "ciaboga_1": "06:26,0", "tiempo_raw": "14:00,1", "tiempo_final": "13:32,2"},
-            {"puesto": 3, "tanda": 5, "calle": 1, "hora_salida": "10:39", "club": "SESTAO",        "handicap": "00:20,7", "ciaboga_1": "06:22,0", "tiempo_raw": "13:57,7", "tiempo_final": "13:37,0"},
-            {"puesto": 4, "tanda": 4, "calle": 2, "hora_salida": "10:37", "club": "PONTEJOS B",    "handicap": "00:32,4", "ciaboga_1": "06:35,0", "tiempo_raw": "14:20,1", "tiempo_final": "13:47,7"},
-            {"puesto": 5, "tanda": 4, "calle": 1, "hora_salida": "10:37", "club": "GETXO B",       "handicap": "00:29,7", "ciaboga_1": "06:32,0", "tiempo_raw": "14:28,9", "tiempo_final": "13:59,2"},
-            {"puesto": 6, "tanda": 2, "calle": 1, "hora_salida": "10:33", "club": "MUNDAKA/BILBAO","handicap": "00:09,0", "ciaboga_1": "06:20,0", "tiempo_raw": "14:11,5", "tiempo_final": "14:02,5"},
-            {"puesto": 7, "tanda": 3, "calle": 1, "hora_salida": "10:35", "club": "BADOK B",       "handicap": "00:18,9", "ciaboga_1": "06:37,0", "tiempo_raw": "14:34,1", "tiempo_final": "14:15,2"},
-            {"puesto": 8, "tanda": 3, "calle": 2, "hora_salida": "10:35", "club": "PLENTZIA B",    "handicap": "00:42,3", "ciaboga_1": "06:55,0", "tiempo_raw": "15:32,1", "tiempo_final": "14:49,8"},
-            {"puesto": 9, "tanda": 1, "calle": 2, "hora_salida": "10:30", "club": "SESTAO B",      "handicap": "00:32,4", "ciaboga_1": "07:17,0", "tiempo_raw": "16:02,9", "tiempo_final": "15:40,5"},
-            {"puesto":10, "tanda": 1, "calle": 1, "hora_salida": "10:30", "club": "ILLUNBE B",     "handicap": "00:57,6", "ciaboga_1": "07:28,0", "tiempo_raw": "16:58,6", "tiempo_final": "16:01,0"}
+            {
+              "puesto": 1,
+              "tanda": 2,
+              "calle": 2,
+              "hora_salida": "10:33",
+              "club": "CASTREÑA",
+              "handicap": "00:05,4",
+              "ciaboga_1": "06:10,0",
+              "tiempo_raw": "13:04,3",
+              "tiempo_final": "12:58,9"
+            },
+            {
+              "puesto": 2,
+              "tanda": 5,
+              "calle": 2,
+              "hora_salida": "10:39",
+              "club": "ZUMAIA B",
+              "handicap": "00:27,9",
+              "ciaboga_1": "06:26,0",
+              "tiempo_raw": "14:00,1",
+              "tiempo_final": "13:32,2"
+            },
+            {
+              "puesto": 3,
+              "tanda": 5,
+              "calle": 1,
+              "hora_salida": "10:39",
+              "club": "SESTAO",
+              "handicap": "00:20,7",
+              "ciaboga_1": "06:22,0",
+              "tiempo_raw": "13:57,7",
+              "tiempo_final": "13:37,0"
+            },
+            {
+              "puesto": 4,
+              "tanda": 4,
+              "calle": 2,
+              "hora_salida": "10:37",
+              "club": "PONTEJOS B",
+              "handicap": "00:32,4",
+              "ciaboga_1": "06:35,0",
+              "tiempo_raw": "14:20,1",
+              "tiempo_final": "13:47,7"
+            },
+            {
+              "puesto": 5,
+              "tanda": 4,
+              "calle": 1,
+              "hora_salida": "10:37",
+              "club": "GETXO B",
+              "handicap": "00:29,7",
+              "ciaboga_1": "06:32,0",
+              "tiempo_raw": "14:28,9",
+              "tiempo_final": "13:59,2"
+            },
+            {
+              "puesto": 6,
+              "tanda": 2,
+              "calle": 1,
+              "hora_salida": "10:33",
+              "club": "MUNDAKA/BILBAO",
+              "handicap": "00:09,0",
+              "ciaboga_1": "06:20,0",
+              "tiempo_raw": "14:11,5",
+              "tiempo_final": "14:02,5"
+            },
+            {
+              "puesto": 7,
+              "tanda": 3,
+              "calle": 1,
+              "hora_salida": "10:35",
+              "club": "BADOK B",
+              "handicap": "00:18,9",
+              "ciaboga_1": "06:37,0",
+              "tiempo_raw": "14:34,1",
+              "tiempo_final": "14:15,2"
+            },
+            {
+              "puesto": 8,
+              "tanda": 3,
+              "calle": 2,
+              "hora_salida": "10:35",
+              "club": "PLENTZIA B",
+              "handicap": "00:42,3",
+              "ciaboga_1": "06:55,0",
+              "tiempo_raw": "15:32,1",
+              "tiempo_final": "14:49,8"
+            },
+            {
+              "puesto": 9,
+              "tanda": 1,
+              "calle": 2,
+              "hora_salida": "10:30",
+              "club": "SESTAO B",
+              "handicap": "00:32,4",
+              "ciaboga_1": "07:17,0",
+              "tiempo_raw": "16:02,9",
+              "tiempo_final": "15:40,5"
+            },
+            {
+              "puesto": 10,
+              "tanda": 1,
+              "calle": 1,
+              "hora_salida": "10:30",
+              "club": "ILLUNBE B",
+              "handicap": "00:57,6",
+              "ciaboga_1": "07:28,0",
+              "tiempo_raw": "16:58,6",
+              "tiempo_final": "16:01,0"
+            }
           ]
         },
         "grupo_1": {
@@ -62,18 +204,150 @@
           "tiempo_ganador_raw": "12:46,1",
           "tiempo_ganador_final": "12:24,5",
           "resultados": [
-            {"puesto": 1,  "tanda": 5, "calle": 1, "hora_salida": "11:08", "club": "GETXO",     "handicap": "00:21,6", "ciaboga_1": "05:55,0", "tiempo_raw": "12:46,1", "tiempo_final": "12:24,5"},
-            {"puesto": 2,  "tanda": 6, "calle": 2, "hora_salida": "11:10", "club": "BADOK",     "handicap": "00:18,9", "ciaboga_1": "06:00,0", "tiempo_raw": "12:46,3", "tiempo_final": "12:27,4"},
-            {"puesto": 3,  "tanda": 4, "calle": 2, "hora_salida": "11:06", "club": "MUNDAKA",   "handicap": "00:10,8", "ciaboga_1": "05:57,0", "tiempo_raw": "12:48,4", "tiempo_final": "12:37,6"},
-            {"puesto": 4,  "tanda": 5, "calle": 2, "hora_salida": "11:08", "club": "ZUMAIA",    "handicap": "00:27,9", "ciaboga_1": "06:08,0", "tiempo_raw": "13:13,9", "tiempo_final": "12:46,0"},
-            {"puesto": 5,  "tanda": 2, "calle": 2, "hora_salida": "11:02", "club": "IBERIA",    "handicap": "00:21,6", "ciaboga_1": "06:09,0", "tiempo_raw": "13:18,0", "tiempo_final": "12:56,4"},
-            {"puesto": 6,  "tanda": 1, "calle": 2, "hora_salida": "11:00", "club": "PLENTZIA",  "handicap": "00:26,1", "ciaboga_1": "06:10,0", "tiempo_raw": "13:26,4", "tiempo_final": "13:00,3"},
-            {"puesto": 7,  "tanda": 3, "calle": 2, "hora_salida": "11:04", "club": "PONTEJOS",  "handicap": "00:17,1", "ciaboga_1": "06:07,0", "tiempo_raw": "13:18,5", "tiempo_final": "13:01,4"},
-            {"puesto": 8,  "tanda": 6, "calle": 1, "hora_salida": "11:10", "club": "FORTUNA",   "handicap": "00:22,5", "ciaboga_1": "06:16,0", "tiempo_raw": "13:26,7", "tiempo_final": "13:04,2"},
-            {"puesto": 9,  "tanda": 3, "calle": 1, "hora_salida": "11:04", "club": "ILLUNBE",   "handicap": "00:14,4", "ciaboga_1": "06:06,0", "tiempo_raw": "13:22,1", "tiempo_final": "13:07,7"},
-            {"puesto": 10, "tanda": 1, "calle": 1, "hora_salida": "11:00", "club": "AIZBURUA",  "handicap": "00:17,1", "ciaboga_1": "06:07,0", "tiempo_raw": "13:28,1", "tiempo_final": "13:11,0"},
-            {"puesto": 11, "tanda": 2, "calle": 1, "hora_salida": "11:02", "club": "BILBAO",    "handicap": "00:17,1", "ciaboga_1": "06:16,0", "tiempo_raw": "13:35,1", "tiempo_final": "13:18,0"},
-            {"puesto": 12, "tanda": 4, "calle": 1, "hora_salida": "11:06", "club": "SANTURTZI", "handicap": "00:18,0", "ciaboga_1": "06:23,0", "tiempo_raw": "13:49,3", "tiempo_final": "13:31,3"}
+            {
+              "puesto": 1,
+              "tanda": 5,
+              "calle": 1,
+              "hora_salida": "11:08",
+              "club": "GETXO",
+              "handicap": "00:21,6",
+              "ciaboga_1": "05:55,0",
+              "tiempo_raw": "12:46,1",
+              "tiempo_final": "12:24,5",
+              "puntos": 12
+            },
+            {
+              "puesto": 2,
+              "tanda": 6,
+              "calle": 2,
+              "hora_salida": "11:10",
+              "club": "BADOK",
+              "handicap": "00:18,9",
+              "ciaboga_1": "06:00,0",
+              "tiempo_raw": "12:46,3",
+              "tiempo_final": "12:27,4",
+              "puntos": 11
+            },
+            {
+              "puesto": 3,
+              "tanda": 4,
+              "calle": 2,
+              "hora_salida": "11:06",
+              "club": "MUNDAKA",
+              "handicap": "00:10,8",
+              "ciaboga_1": "05:57,0",
+              "tiempo_raw": "12:48,4",
+              "tiempo_final": "12:37,6",
+              "puntos": 10
+            },
+            {
+              "puesto": 4,
+              "tanda": 5,
+              "calle": 2,
+              "hora_salida": "11:08",
+              "club": "ZUMAIA",
+              "handicap": "00:27,9",
+              "ciaboga_1": "06:08,0",
+              "tiempo_raw": "13:13,9",
+              "tiempo_final": "12:46,0",
+              "puntos": 9
+            },
+            {
+              "puesto": 5,
+              "tanda": 2,
+              "calle": 2,
+              "hora_salida": "11:02",
+              "club": "IBERIA",
+              "handicap": "00:21,6",
+              "ciaboga_1": "06:09,0",
+              "tiempo_raw": "13:18,0",
+              "tiempo_final": "12:56,4",
+              "puntos": 8
+            },
+            {
+              "puesto": 6,
+              "tanda": 1,
+              "calle": 2,
+              "hora_salida": "11:00",
+              "club": "PLENTZIA",
+              "handicap": "00:26,1",
+              "ciaboga_1": "06:10,0",
+              "tiempo_raw": "13:26,4",
+              "tiempo_final": "13:00,3",
+              "puntos": 7
+            },
+            {
+              "puesto": 7,
+              "tanda": 3,
+              "calle": 2,
+              "hora_salida": "11:04",
+              "club": "PONTEJOS",
+              "handicap": "00:17,1",
+              "ciaboga_1": "06:07,0",
+              "tiempo_raw": "13:18,5",
+              "tiempo_final": "13:01,4",
+              "puntos": 6
+            },
+            {
+              "puesto": 8,
+              "tanda": 6,
+              "calle": 1,
+              "hora_salida": "11:10",
+              "club": "FORTUNA",
+              "handicap": "00:22,5",
+              "ciaboga_1": "06:16,0",
+              "tiempo_raw": "13:26,7",
+              "tiempo_final": "13:04,2",
+              "puntos": 5
+            },
+            {
+              "puesto": 9,
+              "tanda": 3,
+              "calle": 1,
+              "hora_salida": "11:04",
+              "club": "ILLUNBE",
+              "handicap": "00:14,4",
+              "ciaboga_1": "06:06,0",
+              "tiempo_raw": "13:22,1",
+              "tiempo_final": "13:07,7",
+              "puntos": 4
+            },
+            {
+              "puesto": 10,
+              "tanda": 1,
+              "calle": 1,
+              "hora_salida": "11:00",
+              "club": "AIZBURUA",
+              "handicap": "00:17,1",
+              "ciaboga_1": "06:07,0",
+              "tiempo_raw": "13:28,1",
+              "tiempo_final": "13:11,0",
+              "puntos": 3
+            },
+            {
+              "puesto": 11,
+              "tanda": 2,
+              "calle": 1,
+              "hora_salida": "11:02",
+              "club": "BILBAO",
+              "handicap": "00:17,1",
+              "ciaboga_1": "06:16,0",
+              "tiempo_raw": "13:35,1",
+              "tiempo_final": "13:18,0",
+              "puntos": 2
+            },
+            {
+              "puesto": 12,
+              "tanda": 4,
+              "calle": 1,
+              "hora_salida": "11:06",
+              "club": "SANTURTZI",
+              "handicap": "00:18,0",
+              "ciaboga_1": "06:23,0",
+              "tiempo_raw": "13:49,3",
+              "tiempo_final": "13:31,3",
+              "puntos": 1
+            }
           ]
         }
       },
@@ -108,19 +382,79 @@
             "ritmo_medio": "4:06/km",
             "tiempo_total": "13:28",
             "conclusion_desvio": "Aizburua recorrió 40 metros extra sobre la trazada teórica. A un ritmo medio de 4:06/km, implica regalar ~9.8 segundos en zigzagueos, alejando artificialmente al club de mejorar marcas.",
-            "analisis_grafica_ritmo": "Radiografía termomecánica confirmada: En el Largo 1 la trainera sostuvo un ritmo agresivo sub-4:00/km con una boga muy larga y eficiente (32-33 paladas/minuto), amparados por el poderoso colchón de corriente saliente de la ría. Al realizar la ciaboga la física se invirtió y el agua pasó a ser un muro en contra. En un intento desesperado por mantener la velocidad ante el muro hidrodinámico y su incapacidad para cazar empopadas, la tripulación subió fuertemente la frecuencia (34-36 paladas/minuto). Esta descompensación provocó que se 'remara en vacío': mucho mayor gasto cardíaco y muscular, pero un desplazamiento útil (metros por palada) nulo. Resultado final: hundimiento estructural del ritmo por encima de los 4:30/km por pura asfixia rotacional."
+            "analisis_grafica_ritmo": "Radiografía termomecánica confirmada: En el Largo 1 la trainera sostuvo un ritmo agresivo sub-4:00/km con una boga muy larga y eficiente (32-33 paladas/minuto), amparados por el poderoso colchón de corriente saliente de la ría. Al realizar la ciaboga la física se invirtió y el agua pasó a ser un muro en contra. En un intento desesperado por mantener la velocidad ante el muro hidrodinámico y su incapacidad para cazar empopadas, la tripulación subió fuertemente la frecuencia (34-36 paladas/minuto). Esta descompensación provocó que se 'remara en vacío': mucho mayor gasto cardíaco y muscular, pero un desplazamiento útil (MpP) nulo. Resultado final: hundimiento estructural del ritmo por encima de los 4:30/km por pura asfixia rotacional."
           }
         },
         "alineacion": {
-          "patron": {"nombre": "IÑAKI",     "edad": 62},
-          "proa":   {"nombre": "JORGE",     "edad": 50},
+          "patron": {
+            "nombre": "IÑAKI",
+            "edad": 62
+          },
+          "proa": {
+            "nombre": "JORGE",
+            "edad": 50
+          },
           "bancadas": {
-            "1": {"B": {"nombre": "RUBENS",    "edad": 61}, "E": {"nombre": "JAVIER",   "edad": 60}},
-            "2": {"B": {"nombre": "TXEMA",     "edad": 51}, "E": {"nombre": "PEDRO",    "edad": 42}},
-            "3": {"B": {"nombre": "GORKA",     "edad": 59}, "E": {"nombre": "TOMAS",    "edad": 59}},
-            "4": {"B": {"nombre": "CLAUDIO",   "edad": 53}, "E": {"nombre": "IGOR",     "edad": 48}},
-            "5": {"B": {"nombre": "ASIER",     "edad": 55}, "E": {"nombre": "FERNANDO", "edad": 50}},
-            "6": {"B": {"nombre": "J.ANTONIO", "edad": 55}, "E": {"nombre": "AINHOA",   "edad": 54}}
+            "1": {
+              "B": {
+                "nombre": "RUBENS",
+                "edad": 61
+              },
+              "E": {
+                "nombre": "JAVIER",
+                "edad": 60
+              }
+            },
+            "2": {
+              "B": {
+                "nombre": "TXEMA",
+                "edad": 51
+              },
+              "E": {
+                "nombre": "PEDRO",
+                "edad": 42
+              }
+            },
+            "3": {
+              "B": {
+                "nombre": "GORKA",
+                "edad": 59
+              },
+              "E": {
+                "nombre": "TOMAS",
+                "edad": 59
+              }
+            },
+            "4": {
+              "B": {
+                "nombre": "CLAUDIO",
+                "edad": 53
+              },
+              "E": {
+                "nombre": "IGOR",
+                "edad": 48
+              }
+            },
+            "5": {
+              "B": {
+                "nombre": "ASIER",
+                "edad": 55
+              },
+              "E": {
+                "nombre": "FERNANDO",
+                "edad": 50
+              }
+            },
+            "6": {
+              "B": {
+                "nombre": "J.ANTONIO",
+                "edad": 55
+              },
+              "E": {
+                "nombre": "AINHOA",
+                "edad": 54
+              }
+            }
           },
           "edad_media_tripulacion": null,
           "nota_edades": "Edades confirmadas desde el PDF oficial de alineacion de Getxo."
@@ -128,38 +462,355 @@
       }
     },
     {
-      "nombre": "REGATA TEST CONTRARELOJ",
-      "nombre_corto": "TestCR",
+      "nombre": "ITSASOKO AMA BETERANOEN III. BANDERA SANTURTZI",
+      "nombre_corto": "Santurtzi",
       "modalidad": "contrareloj",
-      "fecha": "2026-04-20",
-      "lugar": "Laredo",
-      "liga": "Liga AKK Test",
-      "distancia_m": 3000,
+      "fecha": "2026-04-25",
+      "lugar": "Santurtzi",
+      "liga": "Liga AKK",
+      "distancia_m": 3500,
+      "num_largos": 4,
+      "num_ciabogas": 3,
+      "detalles_distancia": "520m / 1230m / 1230m / 520m",
       "sistema_puntuacion": "handicap",
       "condiciones_campo": {
         "geometria": {
-          "eje": "Baliza 1 -> Baliza 2",
-          "calle1": {"color": "Unica", "posicion": "Abierto"}
+          "eje": "Nautica -> Puente Bizkaia -> Faro",
+          "calle1": {
+            "color": "Unica",
+            "posicion": "Abierto"
+          }
         },
-        "viento": { "velocidad_kmh": 10, "direccion": "N" },
-        "olas": { "altura_m": 0.8, "direccion": "N" },
-        "marea": { "estado_en_regata": "Llenante" },
-        "evolucion_meteo": []
+        "temperatura_aire_c": 21,
+        "temperatura_agua_c": 15,
+        "salinidad_psu": 35.0,
+        "viento": {
+          "velocidad_kmh": 15,
+          "direccion": "NW",
+          "fuerza_beaufort": 3
+        },
+        "olas": {
+          "altura_m": 0.5,
+          "direccion": "NW",
+          "tipo": "Rizada/Picada"
+        },
+        "marea": {
+          "coeficiente": 70,
+          "pleamar_1": "13:00",
+          "bajamar_diurna": "18:56",
+          "estado_en_regata": "Vaciante Maxima"
+        },
+        "evolucion_meteo": [
+          {
+            "hora": "15:45",
+            "viento_kmh": 12,
+            "viento_dir": "NW",
+            "ola_m": 0.3,
+            "corriente": "Vaciante",
+            "desc": "Calentamiento previo"
+          },
+          {
+            "hora": "16:04",
+            "viento_kmh": 15,
+            "viento_dir": "NW",
+            "ola_m": 0.5,
+            "corriente": "Vaciante Fuerte",
+            "desc": "Salida Aizburua"
+          },
+          {
+            "hora": "16:25",
+            "viento_kmh": 16,
+            "viento_dir": "NW",
+            "ola_m": 0.6,
+            "corriente": "Vaciante Maxima",
+            "desc": "Salida favoritos T2"
+          },
+          {
+            "hora": "16:45",
+            "viento_kmh": 18,
+            "viento_dir": "NW",
+            "ola_m": 0.7,
+            "corriente": "Vaciante Maxima",
+            "desc": "Final regata"
+          }
+        ]
       },
       "grupos": {
         "grupo_1": {
+          "hora_inicio": "16:00",
+          "descripcion": "Tanda 1 y 2 General",
+          "total_participantes": 12,
+          "ganador": "BADOK 13",
+          "tiempo_ganador_raw": "13:08,76",
+          "tiempo_ganador_final": "12:47,76",
           "resultados": [
-            {"puesto": 1, "tanda": 1, "calle": 1, "hora_salida": "12:00", "club": "AIZBURUA", "tiempo_raw": "12:00,0", "tiempo_final": "12:00,0"}
+            {
+              "puesto": 1,
+              "tanda": 2,
+              "calle": 1,
+              "hora_salida": "16:29",
+              "club": "BADOCK 13",
+              "handicap": "00:21,0",
+              "ciaboga_1": "01:53,0",
+              "ciaboga_2": "06:28,0",
+              "tiempo_raw": "13:08,76",
+              "tiempo_final": "12:47,76",
+              "puntos": 12
+            },
+            {
+              "puesto": 2,
+              "tanda": 2,
+              "calle": 1,
+              "hora_salida": "16:30",
+              "club": "GETXO ARRAUN",
+              "handicap": "00:33,0",
+              "ciaboga_1": "01:58,0",
+              "ciaboga_2": "06:41,0",
+              "tiempo_raw": "13:42,34",
+              "tiempo_final": "13:09,34",
+              "puntos": 11
+            },
+            {
+              "puesto": 3,
+              "tanda": 2,
+              "calle": 1,
+              "hora_salida": "16:27",
+              "club": "ZUMAIA A.E.",
+              "handicap": "00:36,0",
+              "ciaboga_1": "01:59,0",
+              "ciaboga_2": "06:46,0",
+              "tiempo_raw": "13:49,34",
+              "tiempo_final": "13:13,34",
+              "puntos": 10
+            },
+            {
+              "puesto": 4,
+              "tanda": 1,
+              "calle": 1,
+              "hora_salida": "16:06",
+              "club": "FORTUNA K.E",
+              "handicap": "00:19,0",
+              "ciaboga_1": "01:57,0",
+              "ciaboga_2": "06:45,0",
+              "tiempo_raw": "13:41,50",
+              "tiempo_final": "13:22,50",
+              "puntos": 9
+            },
+            {
+              "puesto": 5,
+              "tanda": 2,
+              "calle": 1,
+              "hora_salida": "16:26",
+              "club": "IBERIA A.T.",
+              "handicap": "00:29,0",
+              "ciaboga_1": "02:00,0",
+              "ciaboga_2": "06:50,0",
+              "tiempo_raw": "13:53,23",
+              "tiempo_final": "13:24,23",
+              "puntos": 8
+            },
+            {
+              "puesto": 6,
+              "tanda": 2,
+              "calle": 1,
+              "hora_salida": "16:28",
+              "club": "MUNDAKA A.T.",
+              "handicap": "00:12,0",
+              "ciaboga_1": "01:56,0",
+              "ciaboga_2": "06:39,0",
+              "tiempo_raw": "13:41,18",
+              "tiempo_final": "13:29,18",
+              "puntos": 7
+            },
+            {
+              "puesto": 7,
+              "tanda": 2,
+              "calle": 1,
+              "hora_salida": "16:25",
+              "club": "PLENTZIA T.B.A.K",
+              "handicap": "00:34,0",
+              "ciaboga_1": "02:03,0",
+              "ciaboga_2": "07:02,0",
+              "tiempo_raw": "14:16,92",
+              "tiempo_final": "13:42,92",
+              "puntos": 6
+            },
+            {
+              "puesto": 8,
+              "tanda": 1,
+              "calle": 1,
+              "hora_salida": "16:07",
+              "club": "PONTEJOS C.R",
+              "handicap": "00:25,0",
+              "ciaboga_1": "02:09,0",
+              "ciaboga_2": "07:04,0",
+              "tiempo_raw": "14:14,45",
+              "tiempo_final": "13:49,45",
+              "puntos": 5
+            },
+            {
+              "puesto": 9,
+              "tanda": 1,
+              "calle": 1,
+              "hora_salida": "16:05",
+              "club": "ILLUNBE A.E.",
+              "handicap": "00:14,0",
+              "ciaboga_1": "01:58,0",
+              "ciaboga_2": "06:53,0",
+              "tiempo_raw": "14:07,05",
+              "tiempo_final": "13:53,05",
+              "puntos": 4
+            },
+            {
+              "puesto": 10,
+              "tanda": 1,
+              "calle": 1,
+              "hora_salida": "16:03",
+              "club": "BILBAO A.B.",
+              "handicap": "00:19,0",
+              "ciaboga_1": "02:00,0",
+              "ciaboga_2": "07:00,0",
+              "tiempo_raw": "14:14,44",
+              "tiempo_final": "13:55,44",
+              "puntos": 3
+            },
+            {
+              "puesto": 11,
+              "tanda": 1,
+              "calle": 1,
+              "hora_salida": "16:02",
+              "club": "ITSASOKO AMA A.T.",
+              "handicap": "00:22,0",
+              "ciaboga_1": "02:04,0",
+              "ciaboga_2": "07:13,0",
+              "tiempo_raw": "14:24,74",
+              "tiempo_final": "14:02,74",
+              "puntos": 2
+            },
+            {
+              "puesto": 12,
+              "tanda": 1,
+              "calle": 1,
+              "hora_salida": "16:04",
+              "club": "AIZBURUA",
+              "handicap": "00:17,0",
+              "ciaboga_1": "02:04,0",
+              "ciaboga_2": "07:07,0",
+              "tiempo_raw": "14:22,09",
+              "tiempo_final": "14:05,09",
+              "puntos": 1
+            }
           ]
         }
       },
       "aizburua": {
         "grupo": "grupo_1",
+        "puesto_en_grupo": 12,
+        "total_en_grupo": 12,
         "tanda": 1,
         "calle": 1,
-        "hora_salida": "12:00",
-        "tiempo_raw": "12:00,0",
-        "tiempo_final": "12:00,0"
+        "hora_salida": "16:04",
+        "handicap": "00:17,0",
+        "ciaboga_1": "02:04,0",
+        "tiempo_raw": "14:22,09",
+        "tiempo_final": "14:05,09",
+        "analisis": {
+          "tiempo_L1_estimado_s": 128.0,
+          "tiempo_L2_estimado_s": 303.0,
+          "velocidad_L1_ms": 4.06,
+          "velocidad_L2_ms": 4.05,
+          "frecuencia_boga_L1_real": "36-40",
+          "frecuencia_boga_L2_real": "33-34",
+          "punto_quiebre": "Ciabogas de fuera (Faro) — Transici&oacute;n de corriente a favor a choque frontal contra la vaciante (El Muro).",
+          "penalizacion_calle_estimada_s": 0,
+          "tiempo_proyectado_calle_optima": "14:05,09",
+          "nota_calle": "Regata contrarreloj. Excelente aprovechamiento de la calle &uacute;nica.",
+          "datos_garmin": {
+            "distancia_real_m": 3450,
+            "distancia_oficial_m": 3500,
+            "desvio_distancia_m": -50,
+            "velocidad_media_kmh": 14.4,
+            "velocidad_maxima_kmh": 16.5,
+            "ritmo_medio": "4:10/km",
+            "tiempo_total": "14:22",
+            "conclusion_desvio": "Trazada excelente: 50m de ahorro sobre el campo te&oacute;rico (~12.5s ganados por navegaci&oacute;n).",
+            "analisis_grafica_ritmo": "Largos 1 y 3 (Ida - 520m/1230m) optimizados con corriente vaciante a favor, permitiendo sostener frecuencias altas (40-36 paladas) para compensar el viento NW de cara. Largos 2 y 4 (Vuelta - 1230m/520m) marcados por el choque frontal contra 'El Muro' de la corriente, gestionados con frialdad bajando a 33 paladas para maximizar el agarre y evitar el vaciado muscular."
+          }
+        },
+        "alineacion": {
+          "patron": {
+            "nombre": "IÑAKI",
+            "edad": 62
+          },
+          "proa": {
+            "nombre": "ROBERTO",
+            "edad": 45
+          },
+          "bancadas": {
+            "1": {
+              "B": {
+                "nombre": "RUBENS",
+                "edad": 61
+              },
+              "E": {
+                "nombre": "JAVIER",
+                "edad": 60
+              }
+            },
+            "2": {
+              "B": {
+                "nombre": "TXEMA",
+                "edad": 51
+              },
+              "E": {
+                "nombre": "PEDRO",
+                "edad": 42
+              }
+            },
+            "3": {
+              "B": {
+                "nombre": "GORKA",
+                "edad": 59
+              },
+              "E": {
+                "nombre": "TOMAS",
+                "edad": 59
+              }
+            },
+            "4": {
+              "B": {
+                "nombre": "ASIER",
+                "edad": 55
+              },
+              "E": {
+                "nombre": "IGOR",
+                "edad": 48
+              }
+            },
+            "5": {
+              "B": {
+                "nombre": "CLAUDIO",
+                "edad": 53
+              },
+              "E": {
+                "nombre": "MIGUEL",
+                "edad": 50
+              }
+            },
+            "6": {
+              "B": {
+                "nombre": "J.ANTONIO",
+                "edad": 55
+              },
+              "E": {
+                "nombre": "IRATXE",
+                "edad": 54
+              }
+            }
+          },
+          "edad_media_tripulacion": null,
+          "nota_edades": "Alineacion facilitada en la sesion actual."
+        }
       }
     }
   ],

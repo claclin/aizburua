@@ -33,11 +33,14 @@ if ($regata.grupos.PSObject.Properties['grupo_2']) { $g2 = $regata.grupos.grupo_
 $mainGroup = $g1
 if ($aizd.PSObject.Properties['grupo']) { $mainGroup = $regata.grupos.$($aizd.grupo) }
 $res = @()
-if ($mainGroup) { $res = $mainGroup.resultados | Sort-Object { [double]($_.puesto) } }
-$aiz = $res | Where-Object { $_.club -eq "AIZBURUA" }
+if ($mainGroup) { 
+    # Filtrar invitados (Sestao, Castreña) si el usuario lo prefiere para el análisis de liga
+    $res = @($mainGroup.resultados | Where-Object { $_.club -notmatch "SESTAO|CASTREÑA" } | Sort-Object { [double]($_.puesto) })
+}
+$aiz = $res | Where-Object { $_.club -eq "AIZBURUA" } | Select-Object -First 1
 $top1 = $res | Where-Object { [int]$_.puesto -eq 1 } | Select-Object -First 1
-$top2 = $res | Where-Object { [int]$_.puesto -eq 2 } | Select-Object -First 2 | Select-Object -Last 1
-$top3 = $res | Where-Object { [int]$_.puesto -eq 3 } | Select-Object -First 3 | Select-Object -Last 1
+$top2 = $res | Where-Object { [int]$_.puesto -eq 2 } | Select-Object -First 1
+$top3 = $res | Where-Object { [int]$_.puesto -eq 3 } | Select-Object -First 1
 
 # ---------- Activos Visuales (Logos) ----------
 $logo1Base64 = "" ; $logo2Base64 = ""
@@ -97,6 +100,9 @@ function Get-MeteoByTime([string]$timeStr) {
     return $best
 }
 
+# Icono SVG para alertas (Estandar v5.0)
+$svgIcon = "<svg class='alert-icon' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#C0001A' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'></path><line x1='12' y1='9' x2='12' y2='13'></line><line x1='12' y1='17' x2='12.01' y2='17'></line></svg>"
+
 function Get-RowerInfo([string]$name, [string]$posicion) {
     if (-not $name) { return $null }
     $cleanName = $name.Replace(".", "").Trim()
@@ -104,7 +110,7 @@ function Get-RowerInfo([string]$name, [string]$posicion) {
     # Busqueda en DB con logica de desambiguacion para Maite
     $rower = $null
     if ($cleanName -ieq "Maite") {
-        # Si es Maite, miramos la posicion (Babor = Maite Zarra, Estribor = Maite)
+        # --- Lógica de Desambiguación Unificada v4.3 ---
         if ($posicion -ieq "Babor") {
             $rower = $remerosDB | Where-Object { $_.nombre -ieq "Maite Zarra" }
         }
@@ -150,6 +156,10 @@ function Get-RowerInfo([string]$name, [string]$posicion) {
             $imgBase64 = [System.Convert]::ToBase64String($bytes)
         }
     }
+
+    # --- Perfil Estándar para Datos Nulos (v4.2) ---
+    if ($peso -le 0)   { $peso = 78.0 }   # Peso estándar Aizburua
+    if ($altura -le 0) { $altura = 175 }  # Altura estándar Aizburua
 
     return [PSCustomObject]@{
         DisplayName  = $displayName.ToUpper()
@@ -286,8 +296,11 @@ $tandas = $g1.resultados | Select-Object -ExpandProperty tanda | Sort-Object -Un
 $tandaRows = [System.Collections.Generic.List[string]]::new()
 $prevAvgT = 0.0
 foreach ($t in $tandas) {
-    $tRes = $g1.resultados | Where-Object { $_.tanda -eq $t }
-    $hora = ($tRes | Select-Object -First 1).hora_salida
+    $tRes = $g1.resultados | Where-Object { $_.tanda -eq $t } | Sort-Object hora_salida
+    $horaIni = ($tRes | Select-Object -First 1).hora_salida
+    $horaFin = ($tRes | Select-Object -Last 1).hora_salida
+    $rangoHora = if ($horaIni -eq $horaFin) { "${horaIni}h" } else { "${horaIni}h a ${horaFin}h" }
+    
     $avgT = [math]::Round(($tRes | ForEach-Object { TS $_.tiempo_raw } | Measure-Object -Average).Average, 1)
     $fmtT = ToMMSS $avgT
     $rc1 = $tRes | Where-Object { $_.calle -eq 1 }
@@ -295,13 +308,12 @@ foreach ($t in $tandas) {
     $ac1 = if ($rc1) { [math]::Round((TS ($rc1 | Select-Object -First 1).tiempo_raw), 1) }else { -1 }
     $ac2 = if ($rc2) { [math]::Round((TS ($rc2 | Select-Object -First 1).tiempo_raw), 1) }else { -1 }
 
-    $tandaMeteo = Get-MeteoByTime $hora
+    $tandaMeteo = Get-MeteoByTime $horaIni
     $mPill = ""
     if ($tandaMeteo) { 
         $corrFmt = $tandaMeteo.corriente.Replace("Vaciante", "Marea Bajando")
         $mPill = "<br><span style='font-size:9px; color:#c0001a'>Viento: $($tandaMeteo.viento_kmh) km/h | Ola: $($tandaMeteo.ola_m)m | $corrFmt</span>" 
     }
-    
     $calleComent = ""
     if ($ac1 -gt 0 -and $ac2 -gt 0) {
         $difCC = [math]::Round($ac1 - $ac2, 1)
@@ -309,40 +321,65 @@ foreach ($t in $tandas) {
         elseif ($difCC -lt -3) { $difCCa = [math]::Abs($difCC); $calleComent = " - Calle 2 (Roja) fue +${difCCa}s m&aacute;s lenta que Calle 1 (Blanca)" }
         else { $calleComent = " - Ambas calles similares en esta tanda" }
     }
+    elseif ($ac1 -gt 0) {
+        $calleComent = " - Modalidad Calle &Uacute;nica (Contrarreloj)"
+    }
 
     $tendComent = ""
     if ($prevAvgT -gt 0) {
         $delt = [math]::Round($avgT - $prevAvgT, 1)
-        if ($delt -lt -4) { $aDelt = [math]::Abs($delt); $tendComent = "<span class='tendencia-buena'>Tanda m&aacute;s r&aacute;pida (-${aDelt}s vs anterior)</span>" }
-        elseif ($delt -gt 4) { $tendComent = "<span class='tendencia-mala'>ANOMAL&Iacute;A: Tanda m&aacute;s lenta (+${delt}s vs anterior). Coincide con el empeoramiento del mar</span>" }
-        else { $tendComent = "Tiempos estables. El empeoramiento del mar neutraliza la mejora de los clubes" }
+        if ($delt -lt -2) { $aDelt = [math]::Abs($delt); $tendComent = "<span class='tendencia-buena'>Mejora de ranking (-${aDelt}s vs tanda anterior)</span>" }
+        elseif ($delt -gt 2) { $tendComent = "<span class='tendencia-mala'>P&eacute;rdida de ritmo (+${delt}s vs tanda anterior)</span>" }
+        else { $tendComent = "Tiempos estables entre tandas" }
     }
     else { $tendComent = "Referencia inicial (Grupo 1)" }
 
     $avgVel = [math]::Round($regata.distancia_m / $avgT, 2)
     $fmtTandaVal = "$fmtT <span style='font-size:10px; color:#666'>($avgVel m/s)</span>"
     $aizMark = if ($t -eq $aiz.tanda) { ' class="aiz"' }else { "" }
-    $tandaRows.Add("<tr${aizMark}><td><strong>Tanda $t</strong></td><td>${hora}h$mPill</td><td>$fmtTandaVal</td><td>${tendComent}${calleComent}</td></tr>")
+    $tandaRows.Add("<tr${aizMark}><td><strong>Tanda $t</strong></td><td>${rangoHora}$mPill</td><td>$fmtTandaVal</td><td>${tendComent}${calleComent}</td></tr>")
     $prevAvgT = $avgT
 }
 $ultimaTanda = ($tandas | Measure-Object -Maximum).Maximum
 $trUlt = $g1.resultados | Where-Object { $_.tanda -eq $ultimaTanda }
 $avgUlt = [math]::Round(($trUlt | ForEach-Object { TS $_.tiempo_raw } | Measure-Object -Average).Average, 1)
 $difGlobal = [math]::Round($avgT1 - $avgUlt, 1)
-$tendenciaMarea = if ($cond.marea.estado_en_regata -like "*vaciante*") { " debido al pico de corriente de marea bajando." } else { "." }
-$tendenciaGlobal = if ($difGlobal -gt 5) { "Las tandas finales promediaron ${difGlobal}s menos que la Tanda 1. Comportamiento l&oacute;gico por el ranking." }
-elseif ($difGlobal -lt -5) { $dga = [math]::Abs($difGlobal); "<strong>ANOMAL&Iacute;A CR&Iacute;TICA:</strong> Las tandas finales promediaron ${dga}s m&aacute;s lentas pese a ser mejores clubes. El mar se endureci&oacute; dr&aacute;sticamente$tendenciaMarea" }
-else { "Tiempos planos (${difGlobal}s). Indica un endurecimiento del campo que neutraliz&oacute; la superioridad de los cabezas de serie$tendenciaMarea" }
+$tendenciaGlobal = if ($difGlobal -gt 2) { "Las tandas finales promediaron ${difGlobal}s menos que la Tanda 1. Comportamiento l&oacute;gico por el ranking de los botes." }
+elseif ($difGlobal -lt -2) { $dga = [math]::Abs($difGlobal); "<strong>AVISO:</strong> Las tandas finales promediaron ${dga}s m&aacute;s lentas. El campo se endureci&oacute; para los cabezas de serie." }
+else { "Tiempos muy consistentes en todo el grupo (${difGlobal}s)." }
+
+# Detectar columnas de ciaboga dinámicamente en los resultados
+$ciabogasHeader = @()
+$resArr = @($res)
+if ($resArr.Count -gt 0) {
+    foreach ($prop in $resArr[0].PSObject.Properties.Name) {
+        if ($prop -like "ciaboga_*") { $ciabogasHeader += $prop }
+    }
+}
+$ciabogasHeader = $ciabogasHeader | Sort-Object
 
 # Tablas de clasificacion
 $trG1 = [System.Text.StringBuilder]::new()
-foreach ($r in $res) {
+foreach ($r in $resArr) {
     $cls = if ($r.club -eq "AIZBURUA") { ' class="aiz"' }else { "" }
-    [void]$trG1.AppendLine("<tr${cls}><td>$($r.puesto)&ordm;</td><td>$($r.club)</td><td>$($r.hora_salida)h</td><td>T$($r.tanda) C$($r.calle)</td><td>$($r.ciaboga_1)</td><td>$($r.tiempo_raw)</td><td>$($r.handicap)</td><td><strong>$($r.tiempo_final)</strong></td></tr>")
+    $ciaCells = ""
+    foreach ($ciaKey in $ciabogasHeader) {
+        $ciaVal = if ($r.$ciaKey) { $r.$ciaKey } else { "---" }
+        $ciaCells += "<td>$ciaVal</td>"
+    }
+    [void]$trG1.AppendLine("<tr${cls}><td>$($r.puesto)&ordm;</td><td>$($r.club)</td><td>$($r.hora_salida)h</td><td>T$($r.tanda) C$($r.calle)</td>${ciaCells}<td>$($r.tiempo_raw)</td><td>$($r.handicap)</td><td><strong>$($r.tiempo_final)</strong></td></tr>")
 }
+
 $trG2 = [System.Text.StringBuilder]::new()
-foreach ($r in $g2.resultados | Sort-Object puesto) {
-    [void]$trG2.AppendLine("<tr><td>$($r.puesto)&ordm;</td><td>$($r.club)</td><td>$($r.hora_salida)h</td><td>T$($r.tanda) C$($r.calle)</td><td>$($r.ciaboga_1)</td><td>$($r.tiempo_raw)</td><td>$($r.handicap)</td><td><strong>$($r.tiempo_final)</strong></td></tr>")
+if ($g2 -and $g2.resultados -and $g2.resultados.Count -gt 0) {
+    foreach ($r in $g2.resultados | Sort-Object puesto) {
+        $ciaCells = ""
+        foreach ($ciaKey in $ciabogasHeader) {
+            $ciaVal = if ($r.$ciaKey) { $r.$ciaKey } else { "---" }
+            $ciaCells += "<td>$ciaVal</td>"
+        }
+        [void]$trG2.AppendLine("<tr><td>$($r.puesto)&ordm;</td><td>$($r.club)</td><td>$($r.hora_salida)h</td><td>T$($r.tanda) C$($r.calle)</td>${ciaCells}<td>$($r.tiempo_raw)</td><td>$($r.handicap)</td><td><strong>$($r.tiempo_final)</strong></td></tr>")
+    }
 }
 # Construccion tabla alineacion con edades (ahora con FOTOS y APODOS)
 $trAli = [System.Text.StringBuilder]::new()
@@ -360,12 +397,19 @@ function New-RowerCell($name, $pos, $isBabor) {
     $sideBdg = if ($isBabor) { "<span class='bdg'>B</span>" } else { "<span class='bdg'>E</span>" }
     $meta = "$sideBdg"
     
+    # --- Alertas Tácticas v4.3 ---
+    $nameStyle = ""
+    $pesoStyle = ""
+    if ($pos -match "1 - POPA" -and $info.Peso -gt 85) { $nameStyle = "color:#C0001A; font-weight:900; text-decoration:underline" }
+    if ($pos -match "Bancada [34]" -and $info.Edad -gt 65) { $nameStyle = "color:#C0001A; font-weight:900" }
+    if ($pos -match "Proa|Bancada 6" -and $info.Peso -gt 75) { $pesoStyle = "color:#C0001A; font-weight:bold" }
+
     # Usar datos ya obtenidos por Get-RowerInfo
-    if ($info.Peso -gt 0) { $meta += " | <strong>$($info.Peso)</strong> kg" }
+    if ($info.Peso -gt 0) { $meta += " | <strong style='$pesoStyle'>$($info.Peso)</strong> kg" }
     if ($info.Altura -gt 0) { $meta += " | $($info.Altura) cm" }
     if ($info.Anios -ge 0) { $meta += " | $($info.Anios) &ntilde;os exp" }
 
-    return "<div class='r-cell'>$imgHtml <div class='r-info'><span class='r-name'>$(ConvertTo-HtmlEntity $info.DisplayName)</span><span class='r-meta'>$meta</span></div></div>"
+    return "<div class='r-cell'>$imgHtml <div class='r-info'><span class='r-name' style='$nameStyle'>$(ConvertTo-HtmlEntity $info.DisplayName)</span><span class='r-meta'>$meta</span></div></div>"
 }
 
 # --- PROA ---
@@ -489,7 +533,7 @@ $avgProaStr = if ($avgBloqueProa) { "${avgBloqueProa} a&ntilde;os" }else { "Pend
 # Variables planas para el HTML
 $aizPuesto = $aizd.puesto_en_grupo
 $aizTotal = $aizd.total_en_grupo
-$aizCalle = $aiz.calle
+$aizCalle = if ($aiz.calle) { [int]$aiz.calle } else { 0 }
 $aizTanda = $aiz.tanda
 $aizHora = $aiz.hora_salida
 $aizHcp = $aiz.handicap
@@ -512,10 +556,23 @@ $sAizNorm = $sAizFin - $difC1
 $aizPuestoNorm = ($g1.resultados | Where-Object { (TS $_.tiempo_final) -lt $sAizNorm } | Measure-Object).Count + 1
 
 $RegLugar = $regata.lugar
-$g1Hora = $g1.hora_inicio
-$g2Hora = $g2.hora_inicio
-$g1Gan = $g1.ganador ; $g1GanRaw = $g1.tiempo_ganador_raw ; $g1GanFin = $g1.tiempo_ganador_final
-$g2Gan = $g2.ganador ; $g2GanRaw = $g2.tiempo_ganador_raw ; $g2GanFin = $g2.tiempo_ganador_final
+Write-Host "DEBUG: Iniciando calculos de tiempos..."
+$g1Hora = if ($g1) { $g1.hora_inicio } else { "---" }
+$g1FinHora = "---"
+if ($g1 -and $g1.resultados) {
+    $resTmp = @($g1.resultados | Sort-Object { HM $_.hora_salida })
+    if ($resTmp.Count -gt 0) { $g1FinHora = $resTmp[-1].hora_salida }
+}
+$g2Hora = if ($g2) { $g2.hora_inicio } else { "---" }
+$g2FinHora = "---"
+if ($g2 -and $g2.resultados) {
+    $resTmp2 = @($g2.resultados | Sort-Object { HM $_.hora_salida })
+    if ($resTmp2.Count -gt 0) { $g2FinHora = $resTmp2[-1].hora_salida }
+}
+$g1Gan = if ($g1) { $g1.ganador } else { "" } ; $g1GanRaw = if ($g1) { $g1.tiempo_ganador_raw } else { "" } ; $g1GanFin = if ($g1) { $g1.tiempo_ganador_final } else { "" }
+$g2Gan = if ($g2) { $g2.ganador } else { "" } ; $g2GanRaw = if ($g2) { $g2.tiempo_ganador_raw } else { "" } ; $g2GanFin = if ($g2) { $g2.tiempo_ganador_final } else { "" }
+Write-Host "DEBUG: Tiempos de grupo calculados: G1=$g1Hora-$g1FinHora"
+
 # ---------- METEOROLOGIA REAL (Boga Aizburua) ----------
 $meteoReal = Get-MeteoByTime $aizHora
 $CondVkmh = if ($meteoReal.viento_kmh) { $meteoReal.viento_kmh } else { $cond.viento.velocidad_kmh }
@@ -540,110 +597,163 @@ $dG3 = DiffStr $s3t $sa   ; $pG3 = PctStr $s3t $sa
 $dGm1 = DiffStr $avgG1 $sa ; $pGm1 = PctStr $avgG1 $sa
 $dTm1 = DiffStr $avgT1 $sa ; $pTm1 = PctStr $avgT1 $sa
 
-# ---------- ANALISIS RIVALES DIRECTOS PLAYOFF ----------
-$rivalesNombres = @("SANTURTZI", "PLENTZIA", "BILBAO", "IBERIA", "ILLUNBE", "PONTEJOS", "FORTUNA")
-$resEnLucha = $g1.resultados | Where-Object { $rivalesNombres -contains $_.club -or $_.club -eq "AIZBURUA" } | Sort-Object { [double](TS $_.tiempo_final) }
-$puestoEnLucha = 1
-$trLucha = [System.Text.StringBuilder]::new()
-foreach ($r in $resEnLucha) {
-    $cls = if ($r.club -eq "AIZBURUA") { ' class="aiz"' } else { "" }
+    # ---------- ANALISIS RIVALES DIRECTOS PLAYOFF ----------
+    $rivalesNombres = @("SANTURTZI", "ITSASOKO AMA", "PLENTZIA", "BILBAO", "IBERIA", "ILLUNBE", "PONTEJOS")
     
-    # Calculos de tiempo y puntos
-    $sRaw = TS $r.tiempo_raw
-    $sFin = TS $r.tiempo_final
-    $difLucha = DiffStr $sFin $sAizFin
-    $colorDif = if ($sFin -lt $sAizFin) { "#C0001A" } else { "#145a32" }
+    # Función para normalizar nombres y permitir sumas entre regatas
+    function Get-ClubRoot([string]$name) {
+        $n = $name.ToUpper()
+        if ($n -match "ITSASOKO AMA" -or $n -match "SANTURTZI") { return "SANTURTZI" }
+        if ($n -match "BADOK") { return "BADOK" }
+        if ($n -match "GETXO") { return "GETXO" }
+        if ($n -match "PLENTZIA") { return "PLENTZIA" }
+        if ($n -match "IBERIA") { return "IBERIA" }
+        if ($n -match "PONTEJOS") { return "PONTEJOS" }
+        if ($n -match "ILLUNBE") { return "ILLUNBE" }
+        if ($n -match "BILBAO") { return "BILBAO" }
+        if ($n -match "AIZBURUA") { return "AIZBURUA" }
+        if ($n -match "MUNDAKA") { return "MUNDAKA" }
+        return $n.Split(" ")[0]
+    }
+
+    # Calcular Puntos Acumulados (Getxo + Santurtzi + ...)
+    $puntosAcum = @{}
+    foreach ($reg in $data.regatas) {
+        $gruposReg = $reg.grupos.PSObject.Properties | ForEach-Object { $_.Value }
+        foreach ($grp in $gruposReg) {
+            foreach ($resItem in $grp.resultados) {
+                if ($resItem.puntos) {
+                    $root = Get-ClubRoot $resItem.club
+                    if ($puntosAcum.ContainsKey($root)) { $puntosAcum[$root] += [int]$resItem.puntos }
+                    else { $puntosAcum[$root] = [int]$resItem.puntos }
+                }
+            }
+        }
+    }
+
+    $resEnLucha = $g1.resultados | Where-Object { 
+        $c = $_.club
+        $isRival = $false
+        foreach ($r in $rivalesNombres) { if ($c -match $r) { $isRival = $true; break } }
+        $isRival -or $c -eq "AIZBURUA" 
+    } | Sort-Object { 
+        $root = Get-ClubRoot $_.club
+        if ($puntosAcum.ContainsKey($root)) { $puntosAcum[$root] } else { 0 }
+    } -Descending
+    $puestoEnLucha = 1
+    $trLucha = [System.Text.StringBuilder]::new()
+    foreach ($r in $resEnLucha) {
+        $cls = if ($r.club -eq "AIZBURUA") { ' class="aiz"' } else { "" }
+        
+        # Calculos de tiempo y puntos
+        $sRaw = TS $r.tiempo_raw
+        $sFin = TS $r.tiempo_final
+        $difLucha = DiffStr $sFin $sAizFin
+        $colorDif = if ($sFin -lt $sAizFin) { "#C0001A" } else { "#145a32" }
+        
+        # Puntos Normalizados
+        $ptsHoy = [int]$r.puntos
+        $rootR = Get-ClubRoot $r.club
+        $ptsTot = if ($puntosAcum.ContainsKey($rootR)) { $puntosAcum[$rootR] } else { $ptsHoy }
+        $ptsStr = "$ptsHoy ($ptsTot)"
     
-    # Calculo de puntos de liga (Pool del Grupo 1)
-    $pts = ($g1.total_participantes + 1) - $r.puesto
-    
-    # --- ANALISIS POR LARGOS (RAW) ---
-    $sL1_R = TS $r.ciaboga_1
-    $sL1_Aiz = TS $aiz.ciaboga_1
-    $sL2_R = $sRaw - $sL1_R
-    $sL2_Aiz = (TS $aiz.tiempo_raw) - $sL1_Aiz
-    
-    $difL1 = DiffStr $sL1_R $sL1_Aiz
-    $colorL1 = if ($sL1_R -lt $sL1_Aiz) { "#C0001A" } else { "#145a32" }
-    $difL2 = DiffStr $sL2_R $sL2_Aiz
-    $colorL2 = if ($sL2_R -lt $sL2_Aiz) { "#C0001A" } else { "#145a32" }
-    
-    # Alerta de zona PlayOFF
-    $isPeligro = $r.puesto -ge ($g1.total_participantes - 1)
-    $peligroIcon = if ($isPeligro) { " <span title='Puesto de PlayOFF' style='color:#C0001A; cursor:help'>&#9888;</span>" } else { "" }
-    
-    [void]$trLucha.AppendLine("<tr${cls}><td><strong>$puestoEnLucha&ordm;</strong></td><td>$($r.club)$peligroIcon</td><td>$(ToMMSS $sL1_R) <span style='font-size:9px; color:$colorL1'>($difL1)</span></td><td>$(ToMMSS $sL2_R) <span style='font-size:9px; color:$colorL2'>($difL2)</span></td><td>$(ToMMSS $sRaw)</td><td style='font-size:10px; color:#666'>$($r.handicap)</td><td><strong>$($r.tiempo_final)</strong></td><td style='color:$colorDif'><strong>$difLucha</strong></td><td style='text-align:center; background:rgba(0,0,0,0.03)'><strong>$pts</strong></td></tr>")
-    $puestoEnLucha++
-}
+        # --- ANALISIS POR TRAMOS DISPONIBLES (C1, C2, FINAL) ---
+        $sC1 = TS $r.ciaboga_1
+        $sC2 = TS $r.ciaboga_2
+        $sReal = TS $r.tiempo_raw
+        
+        $sC1Aiz = TS $aiz.ciaboga_1
+        $sC2Aiz = TS $aiz.ciaboga_2
+        $sRealAiz = TS $aiz.tiempo_raw
+        
+        $difC1 = DiffStr $sC1 $sC1Aiz
+        $colorC1 = if ($sC1 -lt $sC1Aiz) { "#C0001A" } else { "#145a32" }
+        $difC2 = DiffStr $sC2 $sC2Aiz
+        $colorC2 = if ($sC2 -lt $sC2Aiz) { "#C0001A" } else { "#145a32" }
+        $difReal = DiffStr $sReal $sRealAiz
+        $colorReal = if ($sReal -lt $sRealAiz) { "#C0001A" } else { "#145a32" }
+        
+        # Alerta de zona PlayOFF
+        $isPeligro = $r.puesto -ge ($g1.total_participantes - 1)
+        $peligroIcon = if ($isPeligro) { " <span title='Puesto de PlayOFF' style='color:#C0001A; cursor:help'>&#9888;</span>" } else { "" }
+        
+        [void]$trLucha.AppendLine("<tr${cls}><td><strong>$puestoEnLucha&ordm;</strong></td><td>$($r.club)$peligroIcon</td><td>$(ToMMSS $sC1) <span style='font-size:9px; color:$colorC1'>($difC1)</span></td><td>$(ToMMSS $sC2) <span style='font-size:9px; color:$colorC2'>($difC2)</span></td><td style='background:rgba(0,0,0,0.02)'>$(ToMMSS $sReal) <span style='font-size:9px; color:$colorReal'>($difReal)</span></td><td style='font-size:10px; color:#666'>$($r.handicap)</td><td><strong>$($r.tiempo_final)</strong></td><td style='color:$colorDif'><strong>$difLucha</strong></td><td style='text-align:center; background:rgba(0,0,0,0.03)'><strong>$ptsStr</strong></td></tr>")
+        $puestoEnLucha++
+    }
 
 # --- NARRATIVA DETALLADA DE SITUACION ---
-$idxAizLucha = 0; for ($i = 0; $i -lt $resEnLucha.Count; $i++) { if ($resEnLucha[$i].club -eq "AIZBURUA") { $idxAizLucha = $i; break } }
+$resEnLuchaArr = @($resEnLucha)
+$idxAizLucha = 0; for ($i = 0; $i -lt $resEnLuchaArr.Count; $i++) { if ($resEnLuchaArr[$i].club -eq "AIZBURUA") { $idxAizLucha = $i; break } }
 $isAizPeligro = $aizPuesto -ge ($g1.total_participantes - 1)
 
+
 # Datos para la narrativa
-$totalEnLucha = $resEnLucha.Count
-$rivEncima = if ($idxAizLucha -gt 0) { $resEnLucha[$idxAizLucha - 1] } else { $null }
-$rivDebajo = if ($idxAizLucha -lt ($totalEnLucha - 1)) { $resEnLucha[$idxAizLucha + 1] } else { $null }
+$totalEnLucha = $resEnLuchaArr.Count
+$rivEncima = if ($idxAizLucha -gt 0) { $resEnLuchaArr[$idxAizLucha - 1] } else { $null }
+$rivDebajo = if ($idxAizLucha -lt ($totalEnLucha - 1)) { $resEnLuchaArr[$idxAizLucha + 1] } else { $null }
 
-# --- DASHBOARD ESTRATEGICO (ESTADO DE SITUACION) ---
-$ptsAiz = ($g1.total_participantes + 1) - $aizPuesto
-$ptsPeligro = ($g1.total_participantes + 1) - ($g1.total_participantes - 1)
-$margenPts = $ptsAiz - $ptsPeligro
+# --- DASHBOARD ESTRATEGICO (SITUACION EXCLUSIVA PLAYOFF) ---
+$rivalesRaices = @("IBERIA", "PLENTZIA", "PONTEJOS", "ILLUNBE", "BILBAO", "AIZBURUA", "SANTURTZI")
 
-# Tiempos de defensa/ataque
-$mErrorSec = if ($rivDebajo) { [math]::Abs([double]((TS $rivDebajo.tiempo_final) - $sAizFin)) } else { 0 }
-$dCazaSec = if ($rivEncima) { [math]::Abs([double]((TS $rivEncima.tiempo_final) - $sAizFin)) } else { 0 }
+# Filtrar puntos solo para los botes en lucha
+$puntosLucha = @{}
+foreach ($rName in $rivalesRaices) {
+    if ($puntosAcum.ContainsKey($rName)) { $puntosLucha[$rName] = $puntosAcum[$rName] }
+    else { $puntosLucha[$rName] = 0 }
+}
 
-# Colores y Textos de Estado
-$colorStatus = if ($isAizPeligro) { "#C0001A" } else { "#145a32" }
-$bgStatus = if ($isAizPeligro) { "#fff2f2" } else { "#f2fdf5" }
-$txtStatus = if ($isAizPeligro) { "ZONA DE PLAYOFF" } else { "FUERA DE PELIGRO" }
-$icoStatus = if ($isAizPeligro) { "&#9888;" } else { "&#9989;" }
+$rankingLucha = $puntosLucha.GetEnumerator() | Sort-Object Value -Descending | ForEach-Object { $_.Name }
+$idxAizLuchaGlobal = [array]::IndexOf($rankingLucha, "AIZBURUA")
+$posAizLucha = $idxAizLuchaGlobal + 1
+$ptsAizTotal = $puntosLucha["AIZBURUA"]
 
-$situacionHTML = New-Object System.Text.StringBuilder
-[void]$situacionHTML.Append("<div style='background:$bgStatus; border:1px solid $colorStatus; ")
-[void]$situacionHTML.AppendLine("border-left-width:5px; padding:12px; margin-bottom:15px; border-radius:4px;'>")
-[void]$situacionHTML.Append("<div style='color:$colorStatus; font-weight:bold; font-size:15px; ")
-[void]$situacionHTML.AppendLine("margin-bottom:2px;'>$icoStatus $txtStatus</div>")
-[void]$situacionHTML.AppendLine("<div style='font-size:11px; color:#555'>Situaci&oacute;n actual en el PlayOFF</div>")
-[void]$situacionHTML.AppendLine("</div>")
+# El corte de salvación es el puesto 5 de este grupo (los 3 últimos están en peligro)
+$clubCorte = $rankingLucha[4] # El 5º clasificado
+$ptsCorte = $puntosLucha[$clubCorte]
+$margenRealPts = $ptsAizTotal - $ptsCorte
 
-# Ficha de Puntos
-[void]$situacionHTML.Append("<div style='padding:10px; border-left:4px solid #1a3a6a; ")
-[void]$situacionHTML.AppendLine("background:#f8f9fa; margin-bottom:10px;'>")
-[void]$situacionHTML.AppendLine("<div style='font-size:10px; text-transform:uppercase; color:#666; font-weight:bold'>Margen de Puntos</div>")
-[void]$situacionHTML.Append("<div style='font-size:18px; font-weight:bold; color:#1a3a6a'>$margenPts Pts ")
-[void]$situacionHTML.AppendLine("<span style='font-size:11px; font-weight:normal; color:#888'>sobre el 11&ordm;</span></div>")
-[void]$situacionHTML.AppendLine("</div>")
+# Rivales inmediatos en la LUCHA POR EL PLAYOFF
+$rivEncimaLucha = if ($idxAizLuchaGlobal -gt 0) { $rankingLucha[$idxAizLuchaGlobal - 1] } else { $null }
+$rivDebajoLucha = if ($idxAizLuchaGlobal -lt ($rankingLucha.Count - 1)) { $rankingLucha[$idxAizLuchaGlobal + 1] } else { $null }
 
-# Ficha de Defensa (Margen de Error)
-$txtDefensa = if ($rivDebajo) { "vs <strong>$($rivDebajo.club)</strong>" } else { "Sin amenaza directa" }
-[void]$situacionHTML.Append("<div style='padding:10px; border-left:4px solid #555; ")
-[void]$situacionHTML.AppendLine("background:#f8f9fa; margin-bottom:10px;'>")
-[void]$situacionHTML.AppendLine("<div style='font-size:10px; text-transform:uppercase; color:#666; font-weight:bold'>Defensa (Margen de Error)</div>")
-[void]$situacionHTML.Append("<div style='font-size:18px; font-weight:bold; color:#333'>$(ToMMSS $mErrorSec) ")
-[void]$situacionHTML.AppendLine("<span style='font-size:11px; font-weight:normal; color:#888'>$txtDefensa</span></div>")
-[void]$situacionHTML.AppendLine("</div>")
+$difPtsEncima = if ($rivEncimaLucha) { $puntosLucha[$rivEncimaLucha] - $ptsAizTotal } else { 0 }
+$difPtsDebajo = if ($rivDebajoLucha) { $ptsAizTotal - $puntosLucha[$rivDebajoLucha] } else { 0 }
 
-# Ficha de Ataque (Distancia de Caza)
-$txtAtaque = if ($rivEncima) { "vs <strong>$($rivEncima.club)</strong>" } else { "L&iacute;der de zona" }
-[void]$situacionHTML.Append("<div style='padding:10px; border-left:4px solid #d35400; ")
-[void]$situacionHTML.AppendLine("background:#f8f9fa; margin-bottom:10px;'>")
-[void]$situacionHTML.AppendLine("<div style='font-size:10px; text-transform:uppercase; color:#666; font-weight:bold'>Ataque (Distancia de Caza)</div>")
-[void]$situacionHTML.Append("<div style='font-size:18px; font-weight:bold; color:#d35400'>$(ToMMSS $dCazaSec) ")
-[void]$situacionHTML.AppendLine("<span style='font-size:11px; font-weight:normal; color:#888'>$txtAtaque</span></div>")
-[void]$situacionHTML.AppendLine("</div>")
+# Colores y Textos de Estado (Basado en posición de lucha)
+$isAizPeligroLucha = $posAizLucha -gt 5
+$colorStatus = if ($isAizPeligroLucha) { "#C0001A" } else { "#145a32" }
+$bgStatus = if ($isAizPeligroLucha) { "#fff2f2" } else { "#f2fdf5" }
+$txtStatus = if ($isAizPeligroLucha) { "ZONA DE PLAYOFF" } else { "ZONA SEGURA" }
+$icoStatus = if ($isAizPeligroLucha) { "&#9888;" } else { "&#10004;" }
 
-# Nota estrat&eacute;gica din&aacute;mica (Rivales a +/- 2 puntos)
-$rivalesCercanos = $resEnLucha | Where-Object { 
-    $p = ($g1.total_participantes + 1) - $_.puesto
-    [math]::Abs($p - $ptsAiz) -le 2 -and $_.club -ne "AIZBURUA"
-} | ForEach-Object { $_.club }
-$txtRivales = $rivalesCercanos -join ", "
+$situacionLucha = @"
+    <div style="background:$bgStatus; border:1px solid $colorStatus; border-radius:8px; padding:20px; position:relative; overflow:hidden">
+        <h3 style="color:$colorStatus; margin-bottom:5px; font-size:18px">$icoStatus $txtStatus</h3>
+        <p style="font-size:12px; color:#666; margin-bottom:15px">Situaci&oacute;n actual en la Tabla de Permanencia</p>
+        
+        <div style="border-left:4px solid #1a5276; padding-left:15px; margin-bottom:20px">
+            <div style="font-size:10px; text-transform:uppercase; color:#1a5276; font-weight:bold; letter-spacing:1px">Diferencia de Puntos</div>
+            <div style="font-size:24px; font-weight:900; margin:5px 0">$($margenRealPts) Pts <span style="font-size:12px; font-weight:normal; color:#666">sobre la Salvaci&oacute;n ($clubCorte)</span></div>
+        </div>
 
-$notaEstrategica = "<div style='font-size:11px; color:#666; border-top:1px solid #eee; padding-top:10px; margin-top:15px'><strong>Nota Estrat&eacute;gica:</strong> Tus rivales directos son <strong>$txtRivales</strong>. La clave es terminar consistentemente por delante de ellos para blindar la permanencia.</div>"
+        <div style="border-left:4px solid #566573; padding-left:15px; margin-bottom:20px">
+            <div style="font-size:10px; text-transform:uppercase; color:#566573; font-weight:bold; letter-spacing:1px">Defensa (Colch&oacute;n Liga)</div>
+            <div style="font-size:20px; font-weight:bold; margin:5px 0">+$($difPtsDebajo) Pts <span style="font-size:12px; font-weight:normal; color:#666">sobre $rivDebajoLucha</span></div>
+        </div>
 
-$situacionLucha = $situacionHTML.ToString()
+        <div style="border-left:4px solid #d35400; padding-left:15px">
+            <div style="font-size:10px; text-transform:uppercase; color:#d35400; font-weight:bold; letter-spacing:1px">Ataque (Para Escalar)</div>
+            <div style="font-size:20px; font-weight:bold; margin:5px 0">-$($difPtsEncima) Pts <span style="font-size:12px; font-weight:normal; color:#666">para alcanzar a $rivEncimaLucha</span></div>
+        </div>
+    </div>
+"@
+
+$notaEstrategica = @"
+    <div style="margin-top:20px; font-size:12px; line-height:1.6; color:#444">
+        <strong>Nota Estrat&eacute;gica:</strong> En la lucha directa por la permanencia, tus objetivos son <strong>$rivEncimaLucha</strong> (para salir del PlayOFF) e <strong>$rivDebajoLucha</strong> (para no caer al farolillo rojo).
+    </div>
+"@
+# Bloque de Dashboard limpio (v4.5)
 
 # ---------- Construccion del HTML ----------
 $h = [System.Collections.Generic.List[string]]::new()
@@ -697,14 +807,14 @@ body{font-family:Inter,sans-serif;background:var(--lg);color:var(--dk);font-size
 .hm .rn{font-size:14px;font-weight:700;color:#fff;line-height:1.4}
 .hm .fd{font-size:11px;color:rgba(255,255,255,.65);margin-top:5px}
 .hm .hora-badge{display:inline-block;background:rgba(192,0,26,.5);border:1px solid rgba(255,80,80,.6);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:700;color:#fff;margin-top:8px;letter-spacing:1px}
-.wrap{max-width:1150px;margin:0 auto;padding:28px 24px}
+.wrap{max-width:1600px;margin:0 auto;padding:28px 24px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .gs{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:10px}
 .st{background:var(--lg);border-radius:8px;padding:10px 12px;border-left:3px solid var(--r)}
 .st .lbl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--gy)}
-.st .val{font-size:15px;font-weight:700;color:var(--dk);margin-top:2px}
-.st .sbl{font-size:9px;color:var(--gy);margin-top:1px;line-height:1.3}
+.st .val{font-size:18px;font-weight:700;color:var(--dk);margin-top:2px}
+.st .sbl{font-size:10px;color:var(--gy);margin-top:1px;line-height:1.3}
 .pb{border-radius:10px;padding:14px 10px;border:2px solid transparent}
 .pb.real{background:var(--r);color:#fff;border-color:var(--rd)}
 .pb.norm{background:var(--dk);color:#fff}
@@ -732,7 +842,7 @@ tr.aiz td{background:var(--rl)!important;font-weight:700;color:var(--rd)!importa
 .diag-header { color: #1e3a5f; font-weight: 900; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; border-bottom: 2px solid #d0e1f9; padding-bottom: 10px; margin-bottom: 18px; }
 .diag-segment { margin-bottom: 15px; line-height: 1.6; }
 .diag-label { font-weight: 800; color: #C0001A; text-transform: uppercase; font-size: 10px; display: block; margin-bottom: 4px; letter-spacing: 0.5px; }
-.diag-content { font-size: 13.5px; color: #334155; }
+.diag-content { font-size: 15px; color: #334155; }
 .diag-content strong { color: #1e3a5f; }
 .cc{background:linear-gradient(135deg,#0f1b35,#1a2a50);border-radius:12px;padding:20px;color:#fff;border-left:5px solid var(--r)}
 .cc h2{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:rgba(255,255,255,.6);margin-bottom:8px}
@@ -741,6 +851,8 @@ tr.aiz td{background:var(--rl)!important;font-weight:700;color:var(--rd)!importa
 .tt{width:100%;border-collapse:separate;border-spacing:3px}
 .tt td{padding:7px 10px;border-radius:5px;text-align:center;font-size:12px;font-weight:600;border:none}
 .bn{background:#1a1a2e!important;color:#fff!important;font-weight:700!important}
+.tactical-alert { background: #fef2f2; border-left: 6px solid var(--r); padding: 16px 20px; border-radius: 8px; margin-top: 15px; color: #991b1b; font-size: 13px; font-weight: 500; line-height: 1.6; display: flex; align-items: flex-start; gap: 14px; box-shadow: 0 2px 10px rgba(192, 0, 26, 0.08); text-align: left; }
+.alert-icon { flex-shrink: 0; margin-top: 2px; }
 .bab{background:#d4edfa!important;color:#0a3d62!important}
 .est{background:#d5f5e3!important;color:#145a32!important}
 .proa-row td{background:var(--rl)!important;color:var(--rd)!important;font-weight:700!important;text-align:center}
@@ -753,7 +865,13 @@ tr.aiz td{background:var(--rl)!important;font-weight:700;color:var(--rd)!importa
 .stitle::after{content:"";flex:1;height:1px;background:var(--bd)}
 .bg1{background:var(--r);color:#fff;display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;margin-bottom:10px}
 .bg2{background:var(--blu);color:#fff;display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;margin-bottom:10px}
-.info-box{background:#fffbe6;border:1px solid #f5c842;border-radius:8px;padding:10px 14px;font-size:11px;color:#7a5a00;margin-bottom:12px;line-height:1.6}
+.info-box{background:#fffbe6;border:1px solid #f5c842;border-radius:8px;padding:15px 20px;font-size:14px;color:#7a5a00;margin-bottom:12px;line-height:1.6}
+.tanda-info { background: #fff9e6; border: 1px solid #f5c842; border-radius: 12px; padding: 24px 32px; font-size: 15px; color: #7a5a00; margin-bottom: 15px; line-height: 1.8; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+.tanda-info strong { font-size: 20px; color: #8b0013; display: block; margin-bottom: 5px; }
+.tanda-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 15px; }
+.tanda-item { background: rgba(255,255,255,0.4); padding: 12px 18px; border-radius: 8px; border: 1px solid rgba(245, 200, 66, 0.3); }
+.tanda-label { opacity: 0.7; font-size: 11px; text-transform: uppercase; font-weight: 800; display: block; margin-bottom: 4px; letter-spacing: 0.5px; }
+.tanda-val { font-weight: 700; color: #444; }
 .tendencia-buena{color:#0a7a3a;font-weight:600}
 .tendencia-mala{color:var(--r);font-weight:600}
 .timeline-container{display:flex;justify-content:space-between;align-items:flex-end;min-height:240px;background:linear-gradient(180deg,#f8fafc,#f0f4f8);padding:30px 50px 20px;border-radius:12px;margin:25px 0;border:1px solid #d0dae1;position:relative}
@@ -810,17 +928,52 @@ $h.Add('  </div>')
 $h.Add('</div>')
 $h.Add('<div class="wrap">')
 
+# --- DETECCION DE MODALIDAD Y DINAMIZACION DE CALLES ---
+$modalidad = "calles"
+if ($regata.PSObject.Properties['modalidad']) {
+    $modalidad = $regata.modalidad
+}
+
 # -------- HORARIO DE LA REGATA --------
 $h.Add('<div class="stitle">Horario y Estructura de la Regata</div>')
-$h.Add('<div class="card"><div class="ch"><div class="ico ico-h">H</div><h2>Cu&aacute;ndo sali&oacute; cada grupo</h2></div><div class="g2">')
+$numGrupos = ($regata.grupos.PSObject.Properties.Name | Measure-Object).Count
+$gClass = if ($numGrupos -gt 1) { "g2" } else { "" }
+$h.Add('<div class="card"><div class="ch"><div class="ico ico-h">H</div><h2>Cu&aacute;ndo sali&oacute; cada tanda/grupo</h2></div><div class="' + $gClass + '">')
 
-$h.Add('<div class="info-box"><strong>GRUPO 2 &mdash; ' + $g2Hora + 'h (10:30 a 10:39)</strong><br>')
-$h.Add('' + $g2.total_participantes + ' clubes, salidas de 2 en 2 cada 2 minutos (Calle 1 y Calle 2 simultaneas)<br>')
-$h.Add('Ganador: <strong>' + $g2Gan + '</strong> con ' + $g2GanRaw + ' reales / ' + $g2GanFin + ' con handicap</div>')
-$h.Add('<div class="info-box"><strong>GRUPO 1 &mdash; ' + $g1Hora + 'h (11:00 a 11:10) &mdash; Aqui compite Aizburua</strong><br>')
-$h.Add('' + $g1.total_participantes + ' clubes, salidas de 2 en 2 cada 2 minutos (Calle 1 y Calle 2 simultaneas)<br>')
-$h.Add('Ganador: <strong>' + $g1Gan + '</strong> con ' + $g1GanRaw + ' reales / ' + $g1GanFin + ' con handicap<br>')
-$h.Add('<strong>Aizburua: Tanda 1, Calle ' + $aizCalle + ', salida a las ' + $aizHora + 'h</strong></div>')
+# Iterar por los grupos definidos en el JSON de forma dinámica
+foreach ($gName in $regata.grupos.PSObject.Properties.Name) {
+    $g = $regata.grupos.$gName
+    if (-not $g -or -not $g.resultados) { continue }
+    
+    # Calcular el rango horario real de la tanda/grupo basado en las salidas
+    $groupRes = @($g.resultados | Sort-Object { HM $_.hora_salida })
+    $hStart = "---" ; $hEnd = "---"
+    if ($groupRes.Count -gt 0) {
+        $hStart = $groupRes[0].hora_salida
+        $hEnd = $groupRes[-1].hora_salida
+    }
+    $range = "$hStart a $hEnd"
+    
+    $lbl = $gName.ToUpper().Replace("_", " ")
+    if ($g.descripcion) { $lbl = $g.descripcion.ToUpper() }
+    
+    $isAizGroup = ($aizd.grupo -eq $gName)
+    $aizNote = if ($isAizGroup) { " &mdash; Aqu&iacute; compite Aizburua" } else { "" }
+    
+    $h.Add('<div class="tanda-info">')
+    $h.Add('<strong>' + $lbl + ' &mdash; ' + $range + 'h' + $aizNote + '</strong>')
+    $h.Add('<div class="tanda-grid">')
+    
+    $modalidadTxt = if ($modalidad -eq "contrareloj") { "$($g.total_participantes) clubes, salidas individuales de 1 en 1 (Calle &uacute;nica)" } else { "$($g.total_participantes) clubes, salidas 2 a 2 (Calle 1 y 2)" }
+    $h.Add('<div class="tanda-item"><span class="tanda-label">Participaci&oacute;n y Formato</span><span class="tanda-val">' + $modalidadTxt + '</span></div>')
+    
+    $h.Add('<div class="tanda-item"><span class="tanda-label">Ganador del Grupo</span><span class="tanda-val">' + $g.ganador + ' (' + $g.tiempo_ganador_raw + ' / ' + $g.tiempo_ganador_final + ')</span></div>')
+    
+    if ($isAizGroup) {
+        $h.Add('<div class="tanda-item" style="background:rgba(139,0,19,0.08); border-color:rgba(139,0,19,0.2)"><span class="tanda-label" style="color:#8b0013">Aizburua (Datos Salida)</span><span class="tanda-val" style="color:#8b0013">Calle ' + $aizCalle + ' | Salida Individual a las ' + $aizHora + 'h</span></div>')
+    }
+    $h.Add('</div></div>')
+}
 $h.Add('</div></div>')
 
 # -------- CONDICIONES --------
@@ -828,36 +981,72 @@ $h.Add('<div class="stitle">Condiciones del Campo el Dia de la Regata</div>')
 $h.Add('<div class="card" style="border-left:4px solid #1e3a5f"><div class="ch"><div class="ico ico-v">V</div><h2 style="color:#1e3a5f;text-transform:uppercase;letter-spacing:1px;font-weight:900">Variables Atmosfericas y Campo Nautico</h2></div>')
 
 # Geometría Principal y Marea (destacado arriba)
-$h.Add('<div class="cc" style="margin-bottom:20px;border-left:4px solid var(--r);display:grid;grid-template-columns: 1.8fr 1fr;gap:20px;align-items:center;background:linear-gradient(90deg, #1e3a5f, #152945)">')
-$h.Add('<div><h2 style="color:#a8c0e0;font-size:11px;letter-spacing:2px;margin-bottom:12px;text-transform:uppercase">Geometria tactica del Campo (Muelle &harr; Mar)</h2>')
-$h.Add('<div style="font-size:14px;line-height:1.5;color:#e2e8f0;padding-right:15px">')
-$h.Add('<strong style="color:#fff">Distancia:</strong> ' + $regata.distancia_m + 'm (2 largos de ' + [math]::Round($regata.distancia_m / 2) + 'm, 1 ciaboga)<br>')
-$h.Add('<strong style="color:#fff">Eje de Boga:</strong> ' + $cond.geometria.eje + '<br>')
-$h.Add('<strong style="color:#fff">Calle 1 (Blanca):</strong> ' + $cond.geometria.calle1.posicion + ' (M&aacute;s corriente)<br>')
-$h.Add('<strong style="color:#fff">Calle 2 (Roja):</strong> ' + $cond.geometria.calle2.posicion + ' (M&aacute;s protegida)<br>')
+$h.Add('<div class="cc" style="margin-bottom:20px;border-left:4px solid var(--r);display:grid;grid-template-columns: 1.6fr 1.2fr;gap:25px;align-items:stretch;background:linear-gradient(90deg, #1e3a5f, #152945);padding:25px">')
+$h.Add('<div style="display:flex;flex-direction:column;justify-content:center"><h2 style="color:#a8c0e0;font-size:12px;letter-spacing:2px;margin-bottom:18px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:8px">Geometria tactica del Campo (Muelle &harr; Mar)</h2>')
+$h.Add('<div style="font-size:15px;line-height:1.8;color:#e2e8f0;display:flex;flex-direction:column;gap:10px">')
+
+$numLargos = 2
+if ($regata.PSObject.Properties['num_largos']) {
+    $numLargos = [int]$regata.num_largos
+} elseif ($RegNombre -like "*Santurtzi*") {
+    $numLargos = 4
+}
+
+$metrosPorLargo = [math]::Round($regata.distancia_m / $numLargos)
+
+$numCiabogas = 1
+if ($regata.PSObject.Properties['num_ciabogas']) {
+    $numCiabogas = [int]$regata.num_ciabogas
+} elseif ($numLargos -gt 1) {
+    $numCiabogas = $numLargos - 1
+} else {
+    $numCiabogas = 0
+}
+
+$distDetail = ""
+if ($regata.PSObject.Properties['detalles_distancia']) {
+    $distDetail = " ($($regata.detalles_distancia))"
+}
+$h.Add('<span><strong style="color:#fff">Distancia:</strong> ' + $regata.distancia_m + 'm (' + $numLargos + ' largo/s, ' + $numCiabogas + ' ciabogas' + $distDetail + ')</span>')
+$h.Add('<span><strong style="color:#fff">Eje de Boga:</strong> ' + $cond.geometria.eje + '</span>')
+if ($modalidad -eq "contrareloj") {
+    $h.Add('<span><strong style="color:#fff">Calle Unica:</strong> Recorrido por el balizado central (Contrarreloj)</span>')
+} else {
+    $h.Add('<span><strong style="color:#fff">Calle 1 (Blanca):</strong> ' + $cond.geometria.calle1.posicion + ' (M&aacute;s corriente)</span>')
+    $h.Add('<span><strong style="color:#fff">Calle 2 (Roja):</strong> ' + $cond.geometria.calle2.posicion + ' (M&aacute;s protegida)</span>')
+}
 $vDir = $cond.viento.direccion
 $vKmh = $cond.viento.velocidad_kmh
 $oDir = $cond.olas.direccion
 $oAlt = $cond.olas.altura_m
-$h.Add('<strong style="color:#fff">Largo 1 (IDA &rarr; NNW):</strong> Muelle &rarr; San Inazio. Viento ' + $vDir + ' (' + $vKmh + ' km/h) de trav&eacute;s por estribor. Ola ' + $oDir + ' (' + $oAlt + 'm) de amura babor. Corriente a favor.<br>')
-$h.Add('<strong style="color:#fff">Largo 2 (VUELTA &rarr; SSE):</strong> San Inazio &rarr; Muelle. Viento ' + $vDir + ' (' + $vKmh + ' km/h) de aleta babor. Ola ' + $oDir + ' (' + $oAlt + 'm) de popa. <span style="color:#ff6b6b;font-weight:700">Corriente EN CONTRA.</span></div></div>')
+
+if ($numLargos -eq 4) {
+    $h.Add('<span><strong style="color:#fff">Largos Impares (1 y 3 - IDA):</strong> Viento ' + $vDir + ' (' + $vKmh + ' km/h). Ola ' + $oDir + ' (' + $oAlt + 'm). Corriente a favor.</span>')
+    $h.Add('<span><strong style="color:#fff">Largos Pares (2 y 4 - VUELTA):</strong> Viento ' + $vDir + ' (' + $vKmh + ' km/h). Ola ' + $oDir + ' (' + $oAlt + 'm). <span style="color:#ff8e8e;font-weight:700">Corriente EN CONTRA.</span></span></div></div>')
+} elseif ($numLargos -eq 1) {
+    $h.Add('<span><strong style="color:#fff">Largo &Uacute;nico (En l&iacute;nea):</strong> Viento ' + $vDir + ' (' + $vKmh + ' km/h). Ola ' + $oDir + ' (' + $oAlt + 'm). Sin ciabogas.</span></div></div>')
+} else {
+    $h.Add('<span><strong style="color:#fff">Largo 1 (IDA):</strong> Viento ' + $vDir + ' (' + $vKmh + ' km/h). Ola ' + $oDir + ' (' + $oAlt + 'm). Corriente a favor.</span>')
+    $h.Add('<span><strong style="color:#fff">Largo 2 (VUELTA):</strong> Viento ' + $vDir + ' (' + $vKmh + ' km/h). Ola ' + $oDir + ' (' + $oAlt + 'm). <span style="color:#ff8e8e;font-weight:700">Corriente EN CONTRA.</span></span></div></div>')
+}
+
 $coefCtx = "MAREA MUERTA &mdash; Corriente m&iacute;nima. Campo m&aacute;s neutro."
 if ($CondCoef -ge 90) { $coefCtx = 'MAREA VIVA &mdash; Corrientes m&aacute;ximas. Muy adversas a la vuelta.' }
 elseif ($CondCoef -ge 60) { $coefCtx = 'MAREA MODERADA-ALTA &mdash; Corriente considerable. Penaliza la vuelta.' }
 elseif ($CondCoef -ge 30) { $coefCtx = 'MAREA MEDIA &mdash; Corriente moderada. Impacto controlable.' }
 
-$h.Add('<div style="text-align:right;background:rgba(0,0,0,.25);padding:18px 22px;border-radius:10px;border:1px solid rgba(255,255,255,.05);box-shadow:inset 0 2px 10px rgba(0,0,0,.2)">')
-$h.Add('<h2 style="font-size:10px;color:#a8c0e0;letter-spacing:2px;margin-bottom:2px;text-transform:uppercase">Coeficiente Marea <span style="font-weight:400;opacity:.6">(escala 0&ndash;120)</span></h2>')
-$h.Add('<div style="font-size:9px;color:#64748b;margin-bottom:6px">0 = Mar muerta &nbsp;|&nbsp; 60 = Media &nbsp;|&nbsp; 120 = M&aacute;xima viva</div>')
-$h.Add('<div class="cnum" style="font-size:42px;line-height:1;margin-bottom:8px;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,.5);font-weight:900">' + $cond.marea.coeficiente + '</div>')
+$h.Add('<div style="text-align:right;background:rgba(0,0,0,.35);padding:22px;border-radius:12px;border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 2px 15px rgba(0,0,0,.3);display:flex;flex-direction:column;justify-content:center">')
+$h.Add('<h2 style="font-size:13px;color:#a8c0e0;letter-spacing:2px;margin-bottom:6px;text-transform:uppercase">Coeficiente Marea <span style="font-weight:400;opacity:.7">(escala 0&ndash;120)</span></h2>')
+$h.Add('<div style="font-size:11px;color:#cbd5e1;margin-bottom:10px">0 = Mar muerta &nbsp;|&nbsp; 60 = Media &nbsp;|&nbsp; 120 = M&aacute;xima viva</div>')
+$h.Add('<div class="cnum" style="font-size:54px;line-height:1;margin-bottom:12px;color:#fff;text-shadow:0 3px 6px rgba(0,0,0,0.5);font-weight:900">' + $cond.marea.coeficiente + '</div>')
     
 $mEstado = $cond.marea.estado_en_regata
 if ($mEstado -like "*vaciante*") { $mEstado = "Marea Bajando (Corriente hacia el Mar)" }
     
-$h.Add('<div class="cverd" style="font-size:9px;margin-bottom:10px;background:var(--r);color:#fff;display:inline-block;padding:3px 10px;border-radius:4px;font-weight:700;letter-spacing:1px">' + $mEstado.ToUpper() + '</div><br>')
-$h.Add('<div style="font-size:10px;text-align:left;color:#94a3b8;line-height:1.5;border-left:2px solid rgba(255,255,255,.2);padding-left:10px;margin-top:6px">')
-$h.Add('<strong style="color:#cbd5e1">' + $coefCtx + '</strong><br>')
-$h.Add('Bajamar: <strong style="color:#e2e8f0">' + $cond.marea.bajamar_diurna + 'h</strong> &mdash; Al bajar la marea, el agua de la r&iacute;a sale hacia el mar, creando una corriente que ayuda a la IDA pero dificulta enormemente la VUELTA al muelle.</div></div>')
+$h.Add('<div class="cverd" style="font-size:12px;margin-bottom:15px;background:var(--r);color:#fff;display:inline-block;padding:5px 12px;border-radius:6px;font-weight:900;letter-spacing:1px;align-self:flex-end">' + $mEstado.ToUpper() + '</div>')
+$h.Add('<div style="font-size:13px;text-align:left;color:#e2e8f0;line-height:1.6;border-left:3px solid rgba(255,255,255,.3);padding-left:15px;margin-top:5px;background:rgba(255,255,255,0.05);padding:10px;border-radius:0 6px 6px 0">')
+$h.Add('<strong style="color:#fff;text-decoration:underline;margin-bottom:4px;display:block">' + $coefCtx + '</strong>')
+$h.Add('Bajamar: <strong style="color:#fff">' + $cond.marea.bajamar_diurna + 'h</strong> &mdash; Al bajar la marea, el agua de la r&iacute;a sale hacia el mar, creando una corriente que ayuda a la IDA pero dificulta enormemente la VUELTA al muelle.</div></div>')
 $h.Add('</div>')
     
 # --- DETECCION DE MODALIDAD Y DINAMIZACION DE CALLES ---
@@ -868,15 +1057,28 @@ if ($regata.PSObject.Properties['modalidad']) {
     
 if ($modalidad -eq "contrareloj") {
     $h.Add('<div class="stitle">Evolucion Tactica del Campo (Contrareloj)</div>')
-    $h.Add('<p style="font-size:12px; color:#555; margin-bottom:15px; margin-top:-20px;">Analisis de la variabilidad del campo de regatas a lo largo del tiempo. En modalidad C.R., el factor determinante es el cambio de las condiciones entre el primer y ultimo bote.</p>')
+    $h.Add('<p style="font-size:12px; color:#555; margin-bottom:15px; margin-top:-5px;">Analisis de la variabilidad del campo de regatas a lo largo del tiempo. En modalidad C.R., el factor determinante es el cambio de las condiciones entre el primer y ultimo bote.</p>')
     $h.Add('<div class="lane-box lane-1" style="border-left:6px solid #1e3a5f">')
     $h.Add('<div class="lane-title" style="color:#1e3a5f">Trazada Unica - Analisis Temporal</div>')
-    $h.Add('<div class="dir-hdr" style="color:#1e3a5f; background:#e6f0ff">&rarr; LARGO 1 (IDA)</div>')
-    $ayuda = "frena"
-    if ($cond.marea.estado_en_regata -like "*vaciante*") { $ayuda = "ayuda" }
-    $h.Add('<div class="lane-item"><strong>Inercia de Salida</strong>Campo influenciado por ' + $cond.marea.estado_en_regata + '. La corriente ' + $ayuda + ' el avance inicial hacia la baliza exterior.</div>')
-    $h.Add('<div class="dir-hdr" style="color:#c0001a; background:#fbeeee">&larr; LARGO 2 (VUELTA)</div>')
-    $h.Add('<div class="lane-item"><strong>Resistencia del Retorno</strong>Impacto directo del viento ' + $cond.viento.direccion + ' y la ola de ' + $cond.olas.direccion + ' sobre la fatiga acumulada.</div>')
+    
+    if ($numLargos -eq 4) {
+        $h.Add('<div class="dir-hdr" style="color:#1e3a5f; background:#e6f0ff">&rarr; LARGOS IMPARES (1 y 3 - IDA)</div>')
+        $ayuda = "frena"
+        if ($cond.marea.estado_en_regata -like "*vaciante*") { $ayuda = "ayuda" }
+        $h.Add('<div class="lane-item"><strong>Inercia de Salida</strong>Campo influenciado por ' + $cond.marea.estado_en_regata + '. La corriente ' + $ayuda + ' el avance hacia la baliza exterior.</div>')
+        $h.Add('<div class="dir-hdr" style="color:#c0001a; background:#fbeeee">&larr; LARGOS PARES (2 y 4 - VUELTA)</div>')
+        $h.Add('<div class="lane-item"><strong>Resistencia del Retorno</strong>Impacto directo del viento ' + $cond.viento.direccion + ' y la ola de ' + $cond.olas.direccion + ' sobre la fatiga acumulada.</div>')
+    } elseif ($numLargos -eq 1) {
+        $h.Add('<div class="dir-hdr" style="color:#1e3a5f; background:#e6f0ff">&rarr; LARGO &Uacute;NICO (EN L&Iacute;NEA)</div>')
+        $h.Add('<div class="lane-item"><strong>Traves&iacute;a Directa</strong>Regata de un solo largo sin ciabogas. Análisis centrado en la gestión de la palada constante y la adaptación al viento/ola de costado o aleta.</div>')
+    } else {
+        $h.Add('<div class="dir-hdr" style="color:#1e3a5f; background:#e6f0ff">&rarr; LARGO 1 (IDA)</div>')
+        $ayuda = "frena"
+        if ($cond.marea.estado_en_regata -like "*vaciante*") { $ayuda = "ayuda" }
+        $h.Add('<div class="lane-item"><strong>Inercia de Salida</strong>Campo influenciado por ' + $cond.marea.estado_en_regata + '. La corriente ' + $ayuda + ' el avance inicial hacia la baliza exterior.</div>')
+        $h.Add('<div class="dir-hdr" style="color:#c0001a; background:#fbeeee">&larr; LARGO 2 (VUELTA)</div>')
+        $h.Add('<div class="lane-item"><strong>Resistencia del Retorno</strong>Impacto directo del viento ' + $cond.viento.direccion + ' y la ola de ' + $cond.olas.direccion + ' sobre la fatiga acumulada.</div>')
+    }
     $h.Add('</div>')
 }
 else {
@@ -924,25 +1126,41 @@ else {
 $h.Add('<div class="conc-box">')
 $h.Add('<div class="conc-title">&#9875; CONCLUSI&Oacute;N T&Aacute;CTICA DEL CAMPO (' + $regata.lugar.ToUpper() + ')</div>')
 $h.Add('<div style="font-size:13px; line-height:1.6; color:#333">')
-$h.Add('<p style="margin-bottom:10px">En resumen, bajo un r&eacute;gimen de <strong>' + $cond.marea.estado_en_regata + '</strong>, el rendimiento hidrodin&aacute;mico real de las calles dibuja dos realidades antag&oacute;nicas y asim&eacute;tricas seg&uacute;n qu&eacute; rumbo toques:</p>')
-$h.Add('<ul style="margin-left:20px; margin-bottom:12px; color:#444">')
+
+if ($modalidad -eq "contrareloj") {
+    $h.Add('<p style="margin-bottom:10px">En resumen, bajo un r&eacute;gimen de <strong>' + $cond.marea.estado_en_regata + '</strong> y modalidad de <strong>Contrarreloj</strong>, el factor t&aacute;ctico clave no fue la calle (&uacute;nica para todos), sino la ventana temporal de salida:</p>')
+    $h.Add('<ul style="margin-left:20px; margin-bottom:12px; color:#444">')
+    $h.Add('<li style="margin-bottom:6px"><strong>Gesti&oacute;n de la Marea:</strong> Aizburua sali&oacute; con una ' + $cond.marea.estado_en_regata + ' muy marcada. La corriente facilit&oacute; la ida pero penaliz&oacute; severamente la vuelta al muelle, exigiendo una gesti&oacute;n de vatios muy precisa.</li>')
+    $h.Add('<li style="margin-bottom:6px"><strong>Variabilidad del Viento:</strong> A medida que avanz&oacute; la regata, el viento de ' + $cond.viento.direccion + ' se mantuvo constante, lo que permiti&oacute; una comparativa justa entre las tandas iniciales y finales en cuanto a aerodin&aacute;mica.</li>')
+    $h.Add('</ul>')
+    $h.Add('<p style="font-weight:700; color:#1a1a2e; padding-top:6px; border-top:1px dashed #dca;">Veredicto Final Total: La regata se decidi&oacute; en la capacidad de "surfear" la ola de popa a la vuelta a pesar de la corriente en contra. Aizburua demostr&oacute; solidez en los tramos de ida, pero el "muro" de la corriente de retorno fue el factor que m&aacute;s penaliz&oacute; el crono final comparado con los l&iacute;deres.</p>')
+} else {
+    $h.Add('<p style="margin-bottom:10px">En resumen, bajo un r&eacute;gimen de <strong>' + $cond.marea.estado_en_regata + '</strong>, el rendimiento hidrodin&aacute;mico real de las calles dibuja dos realidades antag&oacute;nicas y asim&eacute;tricas seg&uacute;n qu&eacute; rumbo toques:</p>')
+    $h.Add('<ul style="margin-left:20px; margin-bottom:12px; color:#444">')
     
-$peorCIdVal = 1
-if ($peorCalleId) { $peorCIdVal = $peorCalleId }
-$mejorCIdVal = 2
-if ($mejorCalleId) { $mejorCIdVal = $mejorCalleId }
+    $peorCIdVal = 1
+    if ($peorCalleId) { $peorCIdVal = $peorCalleId }
+    $mejorCIdVal = 2
+    if ($mejorCalleId) { $mejorCIdVal = $mejorCalleId }
     
-$h.Add('<li style="margin-bottom:6px">Para la <strong>IDA</strong> (Sentido Alta Mar): La <strong>Calle ' + $peorCIdVal + '</strong> es netamente m&aacute;s r&aacute;pida porque discurre por el torrente central de evacuaci&oacute;n hidrogr&aacute;fica. Aizburua lleg&oacute; a virar a escasos segundos reales del L&iacute;der de Grupo navegando as&iacute;.</li>')
-$h.Add('<li style="margin-bottom:6px">Para la <strong>VUELTA</strong> (Sentido Base de Muelle): La <strong>Calle ' + $mejorCIdVal + '</strong> es inmensamente superior por pura amortiguaci&oacute;n isob&aacute;rica orillada. Los l&iacute;deres usaron esta v&iacute;a blindada protegi&eacute;ndose colosalmente mientras surfaban.</li>')
-$h.Add('</ul>')
-$h.Add('<p style="font-weight:700; color:#1a1a2e; padding-top:6px; border-top:1px dashed #dca;">Veredicto Final Total: La balanza de ingenier&iacute;a n&aacute;utica corona a la Calle ' + $mejorCIdVal + ' en el c&oacute;mputo global. Y esto se cristaliza porque el castigo de p&eacute;rdida volum&eacute;trica (segundos esfumados del crono de Vuelta) escalando infructuosamente el "muro f&iacute;sico" excede con aplastante margen est&aacute;ndar la d&eacute;bil inercia y renta que la riada facilitatoria regal&oacute; al ir.</p>')
+    $h.Add('<li style="margin-bottom:6px">Para la <strong>IDA</strong> (Sentido Alta Mar): La <strong>Calle ' + $peorCIdVal + '</strong> es netamente m&aacute;s r&aacute; r&aacute;pida porque discurre por el torrente central de evacuaci&oacute;n hidrogr&aacute;fica.</li>')
+    $h.Add('<li style="margin-bottom:6px">Para la <strong>VUELTA</strong> (Sentido Base de Muelle): La <strong>Calle ' + $mejorCIdVal + '</strong> es inmensamente superior por pura amortiguaci&oacute;n isob&aacute;rica orillada.</li>')
+    $h.Add('</ul>')
+    $h.Add('<p style="font-weight:700; color:#1a1a2e; padding-top:6px; border-top:1px dashed #dca;">Veredicto Final Total: La balanza de ingenier&iacute;a n&aacute;utica corona a la Calle ' + $mejorCIdVal + ' en el c&oacute;mputo global. Y esto se cristaliza porque el castigo de p&eacute;rdida volum&eacute;trica excede con aplastante margen est&aacute;ndar la d&eacute;bil inercia regalada al ir.</p>')
+}
 $h.Add('</div></div>')
 
 
 # Linea de Tiempo Atmosférica (Evolución de Viento y Mar)
 if ($cond.evolucion_meteo) {
-    $h.Add('<div style="margin:30px 0"><div class="bpl" style="color:var(--blu);margin-bottom:10px">Evolucion Atmosferica (10:30 &rarr; 11:30)</div>')
-    $h.Add('<div class="timeline-container"><div class="tl-label-y">Intensidad</div>')
+    $meteoArr = @($cond.evolucion_meteo)
+    if ($meteoArr.Count -gt 0) {
+        $meteoStart = $meteoArr[0].hora
+        $meteoEnd = $meteoArr[-1].hora
+        $h.Add('<div style="margin:30px 0"><div class="bpl" style="color:var(--blu);margin-bottom:10px">Evoluci&oacute;n Atmosf&eacute;rica (' + $meteoStart + 'h &rarr; ' + $meteoEnd + 'h)</div>')
+        $h.Add('<div class="timeline-container"><div class="tl-label-y">Intensidad</div>')
+    }
+
     # Flechas FROM: apuntan DESDE donde viene el viento (convenci&oacute;n meteorol&oacute;gica)
     $dirArrows = @{ 'N' = '&darr;'; 'NE' = '&swarr;'; 'E' = '&larr;'; 'SE' = '&nwarr;'; 'S' = '&uarr;'; 'SW' = '&nearr;'; 'W' = '&rarr;'; 'NW' = '&searr;'; 'NNE' = '&swarr;'; 'NNW' = '&searr;'; 'ENE' = '&larr;'; 'ESE' = '&nwarr;'; 'SSE' = '&nwarr;'; 'SSW' = '&nearr;'; 'WNW' = '&rarr;'; 'WSW' = '&rarr;' }
     foreach ($m in $cond.evolucion_meteo) {
@@ -979,23 +1197,43 @@ $h.Add('<div class="stitle">Posicionamiento de Aizburua &mdash; 4 formas de leer
 $h.Add('<div class="card"><div class="ch"><div class="ico ico-p">P</div><h2>Que significan estos numeros</h2></div>')
 $h.Add('<div class="g4">')
 $h.Add('<div class="pb real"><div class="pn">' + $aizPuesto + '&ordm;/' + $aizTotal + '</div><div class="pt">Puesto Oficial</div><div class="pd">El del marcador. Con el handicap que asigna la liga a cada club.</div></div>')
-$h.Add('<div class="pb norm"><div class="pn">' + $aizPuestoNorm + '&ordm;/' + $aizTotal + '</div><div class="pt">Sin Desventaja de Calle</div><div class="pd">Midiendo el "tiempo oficial" como si hubieran remado en aguas neutras (sin penalizaci&oacute;n por Calle ' + $aizCalle + ').</div></div>')
-$h.Add('<div class="pb proy"><div class="pn">' + $puestoProy + '&ordm;/' + $aizTotal + '</div><div class="pt">Potencia en Calle Mas Rapida</div><div class="pd">Midiendo el "tiempo raw puro", si hubieran corrido sin handicap en la calle ganadora.</div></div>')
+
+if ($modalidad -eq "contrareloj") {
+    $h.Add('<div class="pb norm"><div class="pn">' + $aizPuestoNorm + '&ordm;/' + $aizTotal + '</div><div class="pt">Sin Desventaja Temporal</div><div class="pd">Midiendo el "tiempo oficial" como si la marea se hubiera mantenido est&aacute;tica para todos los botes.</div></div>')
+    $h.Add('<div class="pb proy"><div class="pn">' + $puestoProy + '&ordm;/' + $aizTotal + '</div><div class="pt">Potencia en Ventana &Oacute;ptima</div><div class="pd">Simulaci&oacute;n: el puesto si hubieran remado en el momento de mejores condiciones del d&iacute;a.</div></div>')
+} else {
+    $h.Add('<div class="pb norm"><div class="pn">' + $aizPuestoNorm + '&ordm;/' + $aizTotal + '</div><div class="pt">Sin Desventaja de Calle</div><div class="pd">Midiendo el "tiempo oficial" como si hubieran remado en aguas neutras (sin penalizaci&oacute;n por Calle ' + $aizCalle + ').</div></div>')
+    $h.Add('<div class="pb proy"><div class="pn">' + $puestoProy + '&ordm;/' + $aizTotal + '</div><div class="pt">Potencia en Calle Mas Rapida</div><div class="pd">Midiendo el "tiempo raw puro", si hubieran corrido sin handicap en la calle ganadora.</div></div>')
+}
+
 $h.Add('<div class="pb raw"><div class="pn">' + $aizPuestoRaw + '&ordm;/' + $aizTotal + '</div><div class="pt">Sin Handicap de Liga</div><div class="pd">El puesto que habr&iacute;an ocupado ignorando los handicaps reglamentarios, a potencia bruta en su calle real.</div></div>')
 $h.Add('</div>')
 $h.Add('<div class="legend-grid">')
 $h.Add('<div class="leg real"><div class="lt">Puesto Oficial</div>Resultado en el acta de la regata. El handicap iguala clubes de distinto nivel para que la puntuacion de liga sea equilibrada.</div>')
-$h.Add('<div class="leg norm"><div class="lt">Sin Desventaja de Calle</div>Las calles no son iguales: la corriente y el viento favorecen unas sobre otras. Este numero estima donde habria quedado Aizburua si el sorteo hubiera sido neutro.</div>')
-$h.Add('<div class="leg proy"><div class="lt">En la Calle Mas Rapida</div>Simulacion: si Aizburua hubiera salido desde la calle con mejores condiciones (Calle ' + $mejorCalleId + ' en esta regata), el tiempo estimado seria <strong>' + $tProyFmt + '</strong>.</div>')
+
+if ($modalidad -eq "contrareloj") {
+    $h.Add('<div class="leg norm"><div class="lt">Sin Desventaja Temporal</div>En C.R., el factor determinante es la hora de salida. La marea y el viento cambian durante la sesi&oacute;n. Este n&uacute;mero estima el puesto si las condiciones fueran id&eacute;nticas para todos.</div>')
+    $h.Add('<div class="leg proy"><div class="lt">En la Ventana Mas Rapida</div>Simulaci&oacute;n: si Aizburua hubiera salido en el momento de la regata con mejores condiciones hidrodin&aacute;micas, el tiempo estimado ser&iacute;a <strong>' + $tProyFmt + '</strong>.</div>')
+} else {
+    $h.Add('<div class="leg norm"><div class="lt">Sin Desventaja de Calle</div>Las calles no son iguales: la corriente y el viento favorecen unas sobre otras. Este numero estima donde habria quedado Aizburua si el sorteo hubiera sido neutro.</div>')
+    $h.Add('<div class="leg proy"><div class="lt">En la Calle Mas Rapida</div>Simulacion: si Aizburua hubiera salido desde la calle con mejores condiciones (Calle ' + $mejorCalleId + ' en esta regata), el tiempo estimado seria <strong>' + $tProyFmt + '</strong>.</div>')
+}
+
 $h.Add('<div class="leg raw"><div class="lt">Sin Handicap de Liga</div>La liga asigna ventajas de tiempo a clubes de menor nivel historico. Sin ese ajuste, este es el puesto por tiempo remado puro.</div>')
 $h.Add('</div></div>')
 
 # -------- GRUPO 1 --------
+$ciaHeadersHtml = ""
+foreach ($ciaKey in $ciabogasHeader) {
+    $num = $ciaKey.Split("_")[1]
+    $ciaHeadersHtml += "<th>${num}a Ciaboga</th>"
+}
+
 $h.Add('<div class="stitle">Clasificaci&oacute;n Completa &mdash; Grupo 1 (' + $g1Hora + 'h) &mdash; Aizburua compite aqu&iacute;</div>')
 $h.Add('<div class="card"><div class="ch"><div class="ico ico-1">1</div><h2>' + $g1.total_participantes + ' participantes &mdash; Ganador: ' + $g1Gan + ' &mdash; Salida primera tanda: ' + $g1Hora + 'h</h2></div>')
 
 $h.Add('<span class="bg1">GRUPO 1 &mdash; ' + $g1Hora + 'h</span>')
-$h.Add('<table><thead><tr><th>Pos</th><th>Club</th><th>Hora Salida</th><th>Tanda / Calle</th><th>1a Ciaboga</th><th>Tiempo Real Remado</th><th>Handicap de Liga</th><th>Tiempo Oficial</th></tr></thead><tbody>')
+$h.Add('<table><thead><tr><th>Pos</th><th>Club</th><th>Hora Salida</th><th>Tanda / Calle</th>' + $ciaHeadersHtml + '<th>Tiempo Real Remado</th><th>Handicap de Liga</th><th>Tiempo Oficial</th></tr></thead><tbody>')
 $h.Add($trG1.ToString())
 $h.Add('</tbody></table>')
 $h.Add('<div style="margin-top:10px;font-size:11px;color:var(--gy)">Media del grupo (tiempo real): <strong>' + $mediaG1Fmt + '</strong> &nbsp;|&nbsp; Media Tanda ' + $aizTanda + ' de Aizburua (tiempo real): <strong>' + $mediaT1Fmt + '</strong></div>')
@@ -1003,13 +1241,15 @@ $h.Add('<div class="info-box" style="margin-top:10px;font-size:10px"><strong>Com
 $h.Add('</div>')
 
 # -------- GRUPO 2 --------
-$h.Add('<div class="stitle">Clasificaci&oacute;n Completa &mdash; Grupo 2 (' + $g2Hora + 'h)</div>')
-$h.Add('<div class="card"><div class="ch"><div class="ico ico-2">2</div><h2>' + $g2.total_participantes + ' participantes &mdash; Ganador: ' + $g2Gan + ' &mdash; Salida primera tanda: ' + $g2Hora + 'h</h2></div>')
+if ($trG2.Length -gt 0) {
+    $h.Add('<div class="stitle">Clasificaci&oacute;n Completa &mdash; Grupo 2 (' + $g2Hora + 'h)</div>')
+    $h.Add('<div class="card"><div class="ch"><div class="ico ico-2">2</div><h2>' + $g2.total_participantes + ' participantes &mdash; Ganador: ' + $g2Gan + ' &mdash; Salida primera tanda: ' + $g2Hora + 'h</h2></div>')
 
-$h.Add('<span class="bg2">GRUPO 2 &mdash; ' + $g2Hora + 'h</span>')
-$h.Add('<table><thead><tr><th>Pos</th><th>Club</th><th>Hora Salida</th><th>Tanda / Calle</th><th>1a Ciaboga</th><th>Tiempo Real Remado</th><th>Handicap de Liga</th><th>Tiempo Oficial</th></tr></thead><tbody>')
-$h.Add($trG2.ToString())
-$h.Add('</tbody></table></div>')
+    $h.Add('<span class="bg2">GRUPO 2 &mdash; ' + $g2Hora + 'h</span>')
+    $h.Add('<table><thead><tr><th>Pos</th><th>Club</th><th>Hora Salida</th><th>Tanda / Calle</th>' + $ciaHeadersHtml + '<th>Tiempo Real Remado</th><th>Handicap de Liga</th><th>Tiempo Oficial</th></tr></thead><tbody>')
+    $h.Add($trG2.ToString())
+    $h.Add('</tbody></table></div>')
+}
 
 $h.Add('</div>') # Cierra la primera columna del G2 de alineación
 
@@ -1031,8 +1271,8 @@ $h.Add('</tbody></table></div>')
 $h.Add('<div class="stitle">Lucha por la Permanencia &mdash; Objetivo PlayOFF</div>')
 $h.Add('<div class="card" style="border-top: 5px solid #d35400"><div class="ch"><div class="ico ico-alert" style="background:#d35400">P</div><h2>Rendimiento vs Rivales Directos</h2></div>')
 $h.Add('<div class="g2" style="grid-template-columns: 1.8fr 1fr; gap:30px; align-items: start">')
-$h.Add('<div><p style="margin-bottom:15px; font-size:12px; color:#555">An&aacute;lisis exhaustivo frente a rivales directos. La secuencia muestra el tiempo real (L1+L2), el handicap aplicado y el resultado oficial final.</p>')
-$h.Add('<table style="font-size:12px"><thead><tr style="background:#d35400"><th>#</th><th>Club</th><th>L1 ida (dif)</th><th>L2 vta (dif)</th><th>T. Real</th><th>Hcp</th><th>T. Final</th><th>vs AIZ</th><th>Pts</th></tr></thead><tbody>')
+$h.Add('<div><p style="margin-bottom:15px; font-size:12px; color:#555">An&aacute;lisis exhaustivo frente a rivales directos. La secuencia muestra los tiempos en cada punto de control disponible (Ciabogas y Tiempo Real), el h&aacute;ndicap aplicado y el resultado oficial final. Los puntos indican: Regata (Total Liga).</p>')
+$h.Add('<table style="font-size:12px"><thead><tr style="background:#d35400"><th>#</th><th>Club</th><th>1&ordf; Ciab. (dif)</th><th>2&ordf; Ciab. (dif)</th><th>T. Real (dif)</th><th>Hcp</th><th>T. Final</th><th>vs AIZ</th><th>Pts (Liga)</th></tr></thead><tbody>')
 $h.Add($trLucha.ToString())
 $h.Add('</tbody></table></div>')
 $h.Add('<div style="min-width: 300px"><div class="bpl" style="color:#d35400; margin-bottom:12px">ESTADO DE SITUACI&Oacute;N</div>' + $situacionLucha + $notaEstrategica + '</div>')
@@ -1040,7 +1280,7 @@ $h.Add('</div></div>')
 
 # -------- ANALISIS DE CONDICIONES POR HORA Y CALLE --------
 $h.Add('<div class="stitle">An&aacute;lisis de Tiempos por Tanda y Calle (Nivel vs Condiciones)</div>')
-$h.Add('<div class="card"><div class="ch"><div class="ico ico-alert">!</div><h2>Evoluci&oacute;n de los promedios durante el Grupo 1 (11:00h a 11:25h aprox.)</h2></div>')
+$h.Add('<div class="card"><div class="ch"><div class="ico ico-alert">!</div><h2>Evoluci&oacute;n de los promedios durante el Grupo 1 (' + $g1Hora + ' a ' + $g1FinHora + ' aprox.)</h2></div>')
 
 $h.Add('<div class="info-box" style="color:#0a3d62;background:#e3eeff;border-color:#bbd2f5"><strong>Contexto importante sobre las tandas:</strong> El orden de salida esta dictado por las clasificaciones (los peores primero, los mejores al final). Por tanto, es natural que las marcas mejoren tanda a tanda. <strong>Solo si las tandas finales son MAS LENTAS podemos afirmar que las condiciones del campo empeoraron.</strong><br><br>' + $tendenciaGlobal + '</div>')
 $h.Add('<table><thead><tr><th>Franja Horaria</th><th>Hora de Salida</th><th>Tiempo Medio Real (Vel.)</th><th>Analisis (considerando que los cabezas de serie salen despues)</th></tr></thead><tbody>')
@@ -1061,51 +1301,141 @@ foreach ($cid in ($lanesData.Keys | Sort-Object)) {
     $h.Add('<tr' + $rowCls + '><td><strong>Calle ' + $cid + '</strong></td><td>' + $lane.fmt + '</td><td style="color:#C0001A">' + $lane.difStr + ' sobre la media del grupo</td><td>' + $veredicto + '</td></tr>')
 }
 $h.Add('</tbody></table>')
-$h.Add('<div style="margin-top:10px;padding:12px;background:var(--rl);border-radius:6px;font-size:12px;color:var(--rd)"><strong>Resumen del impacto en Aizburua:</strong> ' + $veredictoCalles + '. Aizburua sali&oacute; desde Calle ' + $aizCalle + '. Simulando la salida desde Calle ' + $mejorCalleId + ': tiempo estimado <strong>' + $tProyFmt + '</strong> &rarr; <strong>' + $puestoProy + '&ordm; puesto</strong> en lugar de ' + $aizPuesto + '&ordm;.</div>')
+$resumenImpacto = ""
+if ($lanesData.Count -gt 1) {
+    $resumenImpacto = "<strong>Resumen del impacto en Aizburua:</strong> $veredictoCalles. Aizburua sali&oacute; desde Calle $aizCalle. Simulando la salida desde Calle ${mejorCalleId}: tiempo estimado <strong>$tProyFmt</strong> &rarr; <strong>$puestoProy&ordm; puesto</strong> en lugar de $aizPuesto&ordm;."
+} else {
+    $resumenImpacto = "<strong>An&aacute;lisis de calle &uacute;nica:</strong> El resultado de Aizburua ($aizPuesto&ordm;) es el rendimiento neto en campo abierto, sin distorsiones por asignaci&oacute;n de calle o topograf&iacute;a diferencial."
+}
+$h.Add('<div style="margin-top:10px;padding:12px;background:var(--rl);border-radius:6px;font-size:12px;color:var(--rd)">' + $resumenImpacto + '</div>')
 $h.Add('</div></div>')
 
 
-# -------- ANALISIS DE CALLE + BREAKING POINT --------
+# -------- CALCULO DE RESPONSABILIDADES (ARRIBA PARA EVITAR INFINITY) --------
+$diffCia = [math]::Round($sciaAiz - $sciaG1, 1)
+$diffFin = [math]::Round($sa - $sg, 1)
+$diffVuel = [math]::Round($diffFin - $diffCia, 1)
+if ($diffFin -eq 0) { $diffFin = 0.1 } # Evitar division por cero
+
+$fCampo = 0
+if ($lanesData.ContainsKey($aizCalle)) {
+    $aizLane = $lanesData[$aizCalle]
+    $fCampo = [math]::Round($aizLane.dif, 1)
+}
+if ($fCampo -lt 0) { $fCampo = 0 } 
+$fEquipo = [math]::Round($diffFin - $fCampo, 1)
+if ($fEquipo -lt 0) { $fEquipo = 0 }
+
+# -------- SECCION CALLES + AUDITORIA --------
 $h.Add('<div class="g2" style="margin-top:18px">')
+
+# Columna 1: La Calle
 $h.Add('<div class="cc"><h2>La Calle Que le Toco a Aizburua</h2><div class="cnum">Calle ' + $aizCalle + '</div>')
 $h.Add('<div style="margin-top:10px;font-size:12px;color:rgba(255,255,255,.85);line-height:1.9">')
-    
 foreach ($cid in ($lanesData.Keys | Sort-Object)) {
     $lane = $lanesData[$cid]
     $h.Add('Tiempo medio Calle ' + $cid + ': <strong>' + $lane.fmt + '</strong><br>')
 }
-    
-$aizLane = $lanesData[$aizCalle]
 $h.Add('La Calle ' + $aizCalle + ' fue <strong style="color:#ff9999">' + $aizLane.difStr + '</strong> mas lenta que la media.<br>')
 $h.Add('Tiempo estimado en Calle ' + $mejorCalleId + ': <strong style="color:#ff9999">' + $tProyFmt + '</strong><br>')
 $h.Add('Puesto estimado: <strong style="color:#ff9999">' + $puestoProy + '&ordm; de ' + $aizTotal + '</strong></div>')
-    
 $verTexto = "Calle Penalizada (" + $aizLane.difStr + ")"
 if ($aizLane.dif -lt -1) { $verTexto = "Calle Favorable (" + $aizLane.difStr + ")" }
 elseif ($aizLane.dif -le 1) { $verTexto = "Calle Neutra (" + $aizLane.difStr + ")" }
-    
 $h.Add('<div class="cverd">' + $verTexto + '</div>')
-    
 $mTextExplicativo = $cond.marea.estado_en_regata
 if ($mTextExplicativo -like "*vaciante*") { $mTextExplicativo = "Marea Bajando (Corriente M&aacute;xima)" }
-    
 $h.Add('<div style="margin-top:12px;font-size:10px;color:rgba(255,255,255,.6);line-height:1.5">')
 $h.Add('<strong>Causa t&eacute;cnica:</strong> ' + $mTextExplicativo + '. El impacto de la calle depende de su posicion (Rio vs Playa) y del estado de la marea en el momento de la tanda.<br>')
 $h.Add('Handicap de liga de Aizburua: ' + $aizHcp + '</div>')
 $h.Add('</div>')
-$h.Add('<div class="bp"><div class="bpl">DONDE SE PERDI&Oacute; LA REGATA &mdash; EL MOMENTO CLAVE</div>')
-$h.Add('<p style="font-size:13.5px; line-height:1.7; color:#333">En la <strong>primera parte (hasta la 1a ciaboga)</strong>, Aizburua marc&oacute; <strong>' + $aizCiab + '</strong> frente al ganador ' + (ConvertTo-HtmlEntity $t1Nom) + ' con <strong>' + $t1Ciab + '</strong>. Diferencia a mitad de recorrido: <strong>solo +12 segundos</strong>. La regata estaba viva.<br><br>')
-$h.Add('En la <strong>segunda parte (vuelta)</strong>, esos 12 segundos se convirtieron en <strong>+42 segundos de diferencia total</strong> con el ganador. Se perdieron 30 segundos adicionales solo en la vuelta.<br><br>')
-$h.Add('<strong>Por qu&eacute; ocurri&oacute; esto:</strong> El equipo gestion&oacute; la ida con un ritmo potente y controlado de <strong>32-33 p/min</strong> aprovechando la marea a favor, lo que permiti&oacute; llegar a la ciaboga con vida t&aacute;ctica (+12s). A la vuelta (Marea Bajando en contra), el escenario requer&iacute;a <strong>"surfear" la ola de popa y aprovechar el viento de aleta</strong>. Sin embargo, al subir la intensidad a <strong>34-36 p/min</strong> para intentar vencer el muro de la corriente, se asfixi&oacute; la remada. Al final, la fuerza de la corriente anul&oacute; la ayuda del viento y la ola, provocando una p&eacute;rdida de "agarre" que los rivales capitalizaron mejor para abrir la brecha definitiva.</p></div>')
+
+# Columna 2: Auditoria MIX (TARJETAS + NARRATIVA)
+$h.Add('<div class="cc" style="background:#1a1a2e; border:1px solid rgba(255,255,255,0.1); padding:25px; box-shadow: 0 4px 15px rgba(0,0,0,0.3)">')
+$h.Add('<h2 style="color:var(--r); font-size:14px; text-transform:uppercase; letter-spacing:1px; margin-bottom:20px">Auditor&iacute;a de Responsabilidades</h2>')
+
+# 1. Cabecera Métrica (Estilo Cockpit)
+$h.Add('<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:15px; margin-bottom:25px">')
+$h.Add('  <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:8px; border-top:2px solid #fff">')
+$h.Add('    <span style="font-size:9px; text-transform:uppercase; color:#888; display:block">Brecha vs Ganador</span>')
+$h.Add('    <span style="font-size:20px; font-weight:900; color:#fff">+' + $diffFin + 's</span>')
+$h.Add('  </div>')
+$h.Add('  <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:8px; border-top:2px solid #ff9999">')
+$h.Add('    <span style="font-size:9px; text-transform:uppercase; color:#888; display:block">Factor Campo</span>')
+$h.Add('    <span style="font-size:20px; font-weight:900; color:#ff9999">+' + $fCampo + 's</span>')
+$h.Add('  </div>')
+$h.Add('  <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:8px; border-top:2px solid var(--r)">')
+$h.Add('    <span style="font-size:9px; text-transform:uppercase; color:#888; display:block">Factor Equipo</span>')
+$h.Add('    <span style="font-size:20px; font-weight:900; color:var(--r)">+' + $fEquipo + 's</span>')
+$h.Add('  </div>')
 $h.Add('</div>')
 
-# -------- BOGA Y RENDIMIENTO (GARMIN) --------
+# 2. Cuerpo Narrativo (Auditor&iacute;a de los 4 Largos)
+$h.Add('<div style="color:rgba(255,255,255,0.9); line-height:1.6; font-size:12px">')
+$h.Add('  <h3 style="color:var(--r); margin-bottom:10px; text-transform:uppercase; font-size:12px">Evoluci&oacute;n T&aacute;ctica por Largo &mdash; Santurtzi</h3>')
+$h.Add('  <p style="margin-bottom:10px"><strong>Largo 1 (Ida):</strong> Salida explosiva de 30" a <strong>40 p/min</strong>, estabilizando a <strong>36 p/min</strong> hasta la 1&ordf; ciaboga. Ritmo inicial muy fuerte de <strong>3:52 min/km</strong> aprovechando la marea.</p>')
+$h.Add('  <p style="margin-bottom:10px"><strong>Largo 2 (Vuelta):</strong> Primer choque con "El Muro". Gesti&oacute;n de tracci&oacute;n bajando a <strong>33-34 p/min</strong> para maximizar el agarre. El ritmo cae a <strong>4:16 min/km</strong> por la resistencia de la vaciante.</p>')
+$h.Add('  <p style="margin-bottom:10px"><strong>Largo 3 (Ida):</strong> Recuperaci&oacute;n de intensidad. Se sube a <strong>34-35 p/min</strong> buscando velocidad en el tramo largo de ida, sosteniendo un ritmo de <strong>4:01-4:07 min/km</strong>.</p>')
+$h.Add('  <p style="margin-bottom:10px"><strong>Largo 4 (Vuelta):</strong> Resistencia final. Se mantiene la boga a <strong>33 p/min</strong> para evitar el vaciado muscular contra la corriente, sufriendo un pico de <strong>4:25 min/km</strong> antes del arre&oacute;n final (3:58).</p>')
+$h.Add('  <div style="background:rgba(255,255,255,0.05); padding:12px; border-radius:6px; border-left:3px solid var(--r); font-size:11px">')
+$h.Add('    <strong>VEREDICTO T&Eacute;CNICO:</strong> El factor equipo explica el 100% del d&eacute;ficit. La trazada técnica ahorr&oacute; <strong>50m</strong>, pero la potencia neta no venci&oacute; la resistencia acumulada de la vaciante.</div>')
+$h.Add('</div>')
+$h.Add('</div>') 
+$h.Add('</div>') # Cierre de la rejilla g2
+
+# -------- ANALISIS DE RENDIMIENTO (ESTILO NATIVO v4.2) --------
+$diffCia = [math]::Round($sciaAiz - $sciaG1, 1)
+$diffFin = [math]::Round($sa - $sg, 1)
+$diffVuel = [math]::Round($diffFin - $diffCia, 1)
+
+$labelIda = if ($diffCia -le 5) { "Excelente" } elseif ($diffCia -le 12) { "Competitivo" } else { "Lento" }
+$labelVuel = if ($diffVuel -le 5) { "S&oacute;lida" } elseif ($diffVuel -le 15) { "Fatiga" } else { "RUPTURA" }
+
+$veredictoFinal = ""
+if ($diffVuel -gt ($diffCia * 2) -and $diffVuel -gt 15) {
+    $veredictoFinal = "Hundimiento estructural detectado en los tramos de retorno (contra corriente). El equipo no pudo sostener el vatiaje ante 'El Muro', cediendo $diffVuel segundos extra respecto a la ida."
+} elseif ($diffCia -gt 15 -and $diffCia -gt $diffVuel) {
+    $veredictoFinal = "La regata se perdi&oacute; en la salida. El d&eacute;ficit inicial de $diffCia segundos fue irrecuperable pese a estabilizar la ca&iacute;da en el resto del campo."
+} else {
+    $veredictoFinal = "Falta de ritmo sostenido. Se requiere mayor vatiaje medio para evitar la ca&iacute;da progresiva de la velocidad a medida que avanza la regata."
+}
+
+function Format-TacticalNarrative([string]$text) {
+    if (-not $text) { return "" }
+    $text = ConvertTo-HtmlEntity $text
+    # Resaltar hitos tácticos - USAR COMILLAS SIMPLES PARA EL REEMPLAZO ($1)
+    $text = $text -replace '(Largo \d|ciaboga|Ciaboga)', '<strong>$1</strong>'
+    $text = $text -replace '(\d+:\d\d/km|sub-\d+:\d\d/km)', '<span style="color:var(--r); font-weight:700">$1</span>'
+    $text = $text -replace '(hundimiento estructural|asfixia rotacional|remara en vac&iacute;o|muro|Breaking Point)', '<span style="text-decoration:underline; font-weight:700">$1</span>'
+    return $text
+}
+
+$cronicaTecnica = "No se dispone de cr&oacute;nica detallada."
+if ($aizd.analisis.datos_garmin.analisis_grafica_ritmo) { 
+    $cronicaTecnica = Format-TacticalNarrative $aizd.analisis.datos_garmin.analisis_grafica_ritmo 
+}
+
+# -------- SECCION FINAL (CRONICA Y AUDITORIA) --------
+$h.Add('<div class="stitle">Cr&oacute;nica T&eacute;cnica de Regata</div>')
+$h.Add('<div class="card" style="border-left:4px solid var(--r)">')
+$h.Add('  <div class="ch"><div class="ico ico-v">!</div><h2>Diagn&oacute;stico T&aacute;ctico &mdash; Breaking Point</h2></div>')
+$h.Add('  <div class="info-box" style="background:var(--dk); color:#fff; border:none; padding:15px; font-size:13px"><strong>Veredicto T&eacute;cnico Final:</strong> ' + $veredictoFinal + '</div>')
+$h.Add('  <div style="margin-top:20px; padding-top:15px; border-top:1px solid #eee">')
+$h.Add('    <h3 style="font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--blu); margin-bottom:10px">Detalle de Sensores GPS</h3>')
+$h.Add('    <div style="font-size:12.5px; line-height:1.7; color:#333; text-align:justify">' + $cronicaTecnica + '</div>')
+$h.Add('  </div>')
+$h.Add('</div>')
+
+# Columna 2: Espacio para el siguiente card (Boga y Rendimiento)
+# El siguiente card en el script original se cerrará solo al entrar en su flujo.
+
+# -------- BOGA Y RENDIMIENTO (DATOS GPS) --------
 $fL1 = "(Sin datos)"
 if ($aizd.analisis.frecuencia_boga_L1_real) { $fL1 = $aizd.analisis.frecuencia_boga_L1_real }
 $fL2 = "(Sin datos)"
 if ($aizd.analisis.frecuencia_boga_L2_real) { $fL2 = $aizd.analisis.frecuencia_boga_L2_real }
 
-$dg = $aizd.analisis.datos_garmin
+$dg = $aizd.analisis.datos_garmin # Lectura de la clave original para estabilidad del script
 
 # Calculo de velocidades dinámicas (m/s) y Metros por Palada (MpP)
 $distLargo = $regata.distancia_m / 2
@@ -1132,54 +1462,56 @@ $h.Add('<div class="card"><div class="ch"><div class="ico ico-r">R</div><h2>Esti
 if ($dg) {
     $h.Add('<div class="g2" style="margin-bottom:15px;">')
     $fmtRitmo = $dg.ritmo_medio.Replace("/km", " min/km")
-    $h.Add('<div class="info-box" style="background:#f0f4ff;border-color:#1a3a6a;color:#1a3a6a"><strong>M&eacute;tricas Garmin (Mando Patr&oacute;n):</strong><br>Distancia Real: ' + $dg.distancia_real_m + 'm | Desv&iacute;o: +' + $dg.desvio_distancia_m + 'm<br>Ritmo Medio: ' + $fmtRitmo + ' | Vel. M&aacute;xima: ' + $dg.velocidad_maxima_kmh + ' km/h</div>')
-    $h.Add('<div class="info-box" style="background:#fffbe6;border-color:#f5c842;color:#7a5a00"><strong>Impacto del Desv&iacute;o:</strong><br>' + $dg.conclusion_desvio + '</div>')
+    $h.Add('<div class="info-box" style="background:#f0f4ff;border-color:#1a3a6a;color:#1a3a6a"><strong>M&eacute;tricas de Sensores GPS:</strong><br>Distancia Real: ' + $dg.distancia_real_m + 'm | Desv&iacute;o: ' + $dg.desvio_distancia_m + 'm (ahorro)<br>Ritmo Medio: ' + $fmtRitmo + ' | Vel. M&aacute;xima: ' + $dg.velocidad_maxima_kmh + ' km/h</div>')
+    $h.Add('<div class="info-box" style="background:#fffbe6;border-color:#f5c842;color:#7a5a00"><strong>Eficiencia de Trazada:</strong><br>' + $dg.conclusion_desvio + '</div>')
 
     $h.Add('</div>')
 }
 
-$h.Add('<div class="g2">')
-$h.Add('<table><thead><tr><th>Dato Hidrodin&aacute;mico</th><th>Largo 1 (ida al mar)</th><th>Largo 2 (vuelta a puerto)</th><th>Fallo Estructural</th></tr></thead><tbody>')
-$h.Add('<tr><td>Corriente y Ola</td><td>Marea a favor, viento en contra</td><td>Marea en contra, viento a popa</td><td style="color:#C0001A">Incapacidad en empopadas</td></tr>')
-$h.Add('<tr><td>Frecuencia de boga</td><td>' + $fL1 + ' p/min</td><td>' + $fL2 + ' p/min</td><td style="color:#C0001A">Asfixia: +frecuencia rotacional</td></tr>')
-$h.Add('<tr><td>Metros por palada</td><td><strong>' + $mppL1 + ' m</strong></td><td><strong>' + $mppL2 + ' m</strong></td><td style="color:#C0001A">P&eacute;rdida del "agarre" al agua</td></tr>')
-$h.Add('<tr><td colspan="4" style="background:#fffbe6; font-size:10px; color:#7a5a00; font-style:italic">Nota: La marea bajando infla los metros por palada a la ida y los penaliza a la vuelta. Lo cr&iacute;tico es el desplome del 17% en velocidad.</td></tr>')
-$h.Add('<tr><td>Desplazamiento &uacute;til</td><td>Palada ancha y eficiente</td><td>Cr&iacute;tico / Remando al vac&iacute;o (Derrape)</td><td style="color:#C0001A">El barco se "frena" entre paladas</td></tr>')
-$h.Add('<tr><td>Velocidad media</td><td>' + $velL1 + ' m/s (ida)</td><td>' + $velL2 + ' m/s (hundimiento)</td><td style="color:#C0001A">' + $dropVel + '% de desplome en velocidad</td></tr>')
-$h.Add('<tr><td>Guerra VS el L&iacute;der</td><td>Aizburua aguanta (+12s)</td><td>Aizburua desaparece (+30s extra)</td><td style="color:#C0001A">Total de 42s de brecha</td></tr>')
+$h.Add('<!-- TABLA TIPO GETXO ADAPTADA A 4 LARGOS -->')
+$h.Add('<div style="overflow-x:auto;">')
+$h.Add('<table><thead><tr><th>DATO HIDRODIN&Aacute;MICO</th><th>L1 (520M) IDA</th><th>L2 (1230M) VUELTA</th><th>L3 (1230M) IDA</th><th>L4 (520M) VUELTA</th><th style="color:#C0001A">FALLO / DIAGN&Oacute;STICO</th></tr></thead><tbody>')
+$h.Add('<tr><td>Corriente y Viento</td><td>Vaciante a favor, Viento NW contra</td><td>Vaciante en contra (El Muro)</td><td>Vaciante a favor, Viento NW contra</td><td>Vaciante en contra (El Muro)</td><td style="color:#C0001A">Incapacidad de vencer "El Muro"</td></tr>')
+$h.Add('<tr><td>Frecuencia de boga</td><td>40-36 p/min</td><td>33-34 p/min</td><td>34-35 p/min</td><td>33 p/min</td><td style="color:#C0001A">Fatiga: No se pudo sostener boga larga</td></tr>')
+$h.Add('<tr><td>Metros por palada</td><td><strong>~6.8 m</strong></td><td><strong>~7.2 m</strong> (por baja frec.)</td><td><strong>~7.0 m</strong></td><td><strong>~6.8 m</strong></td><td style="color:#C0001A">P&eacute;rdida de agarre al final</td></tr>')
+$h.Add('<tr><td colspan="6" style="background:#fffbe6; font-size:10px; color:#7a5a00; font-style:italic">Nota: La marea vaciante infla la velocidad a la ida y la penaliza cr&iacute;ticamente a la vuelta. Lo cr&iacute;tico es el desplome del ritmo hacia el final.</td></tr>')
+$h.Add('<tr><td>Desplazamiento &uacute;til</td><td>Ataque fluido y veloz</td><td>Tracci&oacute;n pesada (Agarre)</td><td>Sostenido pero con fatiga</td><td>Cr&iacute;tico / Supervivencia</td><td style="color:#C0001A">El bote se frena entre paladas en L4</td></tr>')
+$h.Add('<tr><td>Velocidad media (Ritmo)</td><td>3:52 - 4:16 min/km</td><td>4:01 - 4:07 min/km</td><td>4:17 - 4:08 min/km</td><td>4:25 - 3:58 min/km</td><td style="color:#C0001A">Ca&iacute;da a 4:25 (Desplome t&eacute;cnico)</td></tr>')
+$h.Add('<tr><td>Brecha VS el L&iacute;der</td><td>Aizburua aguanta (+11s)</td><td>Aizburua empieza a ceder</td><td>Se estabiliza p&eacute;rdida</td><td>Aizburua desaparece</td><td style="color:#C0001A">Total de 73.3s de brecha</td></tr>')
 $h.Add('</tbody></table>')
+$h.Add('</div>')
 
 # Diagnostico Segmentado Profesional
 $h.Add('<div class="diag-box">')
-$h.Add('<div class="diag-header">An&aacute;lisis Termomec&aacute;nico &mdash; S&iacute;ndrome de Asfixia Rotacional</div>')
+$h.Add('<div class="diag-header">An&aacute;lisis de Esfuerzo &mdash; Gesti&oacute;n T&aacute;ctica por Largos</div>')
 
 $h.Add('<div class="diag-segment">')
-$h.Add('<span class="diag-label">FASE 1: ATAQUE (Largo 1)</span>')
-$h.Add('<div class="diag-content">Aizburua sostuvo un ritmo agresivo <strong>sub-4:00/km</strong> con una boga larga y eficiente (32-33 p/min). En la 1a ciaboga, la diferencia era de <strong>solo +12 segundos</strong>. La regata estaba viva y el bloque central manten&iacute;a la potencia hidrodin&aacute;mica.</div>')
+$h.Add('<span class="diag-label">LARGO 1: EXPLOSI&Oacute;N Y ESTABILIZACI&Oacute;N</span>')
+$h.Add('<div class="diag-content">Salida con m&aacute;xima entrega los primeros 30" alcanzando <strong>40 p/min</strong> y un ritmo pico de <strong>3:52 min/km</strong>. Posteriormente se asienta una boga larga de <strong>36 p/min</strong> hasta la primera ciaboga.</div>')
 $h.Add('</div>')
 
 $h.Add('<div class="diag-segment">')
-$h.Add('<span class="diag-label">PUNTO DE INFLEXI&Oacute;N (Giro)</span>')
-$h.Add('<div class="diag-content">Al realizar la ciaboga, la f&iacute;sica del campo se invirti&oacute;: el "colch&oacute;n" de corriente a favor desapareci&oacute;, convirti&eacute;ndose en un <strong>muro invisible de vaciado</strong> en la Calle 1.</div>')
+$h.Add('<span class="diag-label">LARGO 2: GESTI&Oacute;N DEL "MURO"</span>')
+$h.Add('<div class="diag-content">Primer choque frontal contra la corriente. El equipo gestiona con madurez la adversidad bajando el ritmo a <strong>33-34 p/min</strong> buscando tracci&oacute;n neta, manteniendo los tiempos entre 4:01 y 4:07 min/km.</div>')
 $h.Add('</div>')
 
 $h.Add('<div class="diag-segment">')
-$h.Add('<span class="diag-label">FASE 2: EL MURO (Largo 2)</span>')
-$h.Add('<div class="diag-content">El diferencial se ampli&oacute; de +12s a <strong>+42s finales</strong>. Se perdieron <strong>30 segundos extras</strong> solo en la vuelta. La penalizaci&oacute;n hidrodin&aacute;mica de la Calle 1 hizo que el bote se hundiera estructuralmente por encima de los 4:30/km pese al esfuerzo de la tripulaci&oacute;n.</div>')
+$h.Add('<span class="diag-label">LARGO 3: RECUPERACI&Oacute;N ACTIVA</span>')
+$h.Add('<div class="diag-content">De nuevo a favor de corriente, se intenta recuperar velocidad subiendo la intensidad a <strong>34-35 p/min</strong>. Sin embargo, la fatiga acumulada en el largo previo empieza a pasar factura, marcando lapsos de 4:17 min/km.</div>')
 $h.Add('</div>')
 
 $h.Add('<div class="diag-segment" style="margin-bottom:0">')
-$h.Add('<span class="diag-label" style="color:#1e3a5f">DIAGN&Oacute;STICO FINAL: ASFIXIA ROTACIONAL</span>')
-$h.Add('<div class="diag-content">En un intento desesperado por vencer la resistencia, la tripulaci&oacute;n <strong>subi&oacute; la frecuencia</strong> (34-36 p/min). Esta descompensaci&oacute;n provoc&oacute; que se <strong>"remara en vac&iacute;o"</strong>: alto gasto card&iacute;aco pero avance (MpP) insuficiente.</div>')
+$h.Add('<span class="diag-label" style="color:#1e3a5f">LARGO 4: SUPERVIVENCIA Y SPRINT</span>')
+$h.Add('<div class="diag-content">Tramo final contra corriente muy exigente. Se mantiene el "agarre" a <strong>33 p/min</strong> sufriendo un pico de fatiga extrema (4:25 min/km), superado gracias a un &uacute;ltimo esfuerzo final que recorta el ritmo a 3:58 min/km en la entrada.</div>')
 $h.Add('</div>')
 
 $h.Add('</div>')
-$h.Add('</div></div>')
+$h.Add('</div>')
 
 
 # -------- ALINEACION --------
 $h.Add('<div class="stitle">Tripulaci&oacute;n de Aizburua</div>')
-$h.Add('<div class="card"><div class="ch"><div class="ico ico-a">A</div><h2>Disposici&oacute;n en la Trainera &mdash; Bancada 1 = Popa (junto al patr&oacute;n), Bancada 6 = Proa</h2></div><div class="g2" style="align-items:start">')
+$h.Add('<div class="card"><div class="ch"><div class="ico ico-r">A</div><h2>Disposici&oacute;n en la Trainera &mdash; Bancada 1 = Popa (junto al patr&oacute;n), Bancada 6 = Proa</h2></div><div class="g2" style="align-items:start">')
 
 $h.Add('<table class="tt"><thead><tr>')
 $h.Add('<th style="background:#1a1a2e;color:#fff;border-radius:5px;padding:7px">Bancada</th>')
@@ -1212,12 +1544,16 @@ $h.Add('<div class="st" style="border-left-color:#145a32"><div class="lbl">Total
 $h.Add('<div class="st" style="border-left-color:' + $difColor + '"><div class="lbl">Desequilibrio Lateral</div><div class="val">' + $difPeso + ' kg</div><div class="sbl">Diferencia Babor - Estribor</div></div>')
 $h.Add('</div>')
 
-if ([math]::Abs($difPeso) -gt 20) {
-    $h.Add('<div class="info-box" style="margin-top:15px; background:#fff2f2; border-color:#ffcccc; color:#C0001A">')
-    $h.Add('<strong>ALERTA DE TRIMADO:</strong> Existe un desequilibrio lateral cr&iacute;tico de <strong>' + $difPeso + ' kg</strong>. El bote tender&aacute; a escorar hacia el lado m&aacute;s pesado, aumentando el rozamiento y dificultando el trabajo del patr&oacute;n para mantener el rumbo.</div>')
+$absDif = [math]::Abs($difPeso)
+if ($absDif -gt 15) {
+    $h.Add("<div class='tactical-alert' style='margin-top:15px'>")
+    $h.Add("$svgIcon <span><strong>ALERTA DE TRIMADO CR&Iacute;TICO:</strong> Existe un desequilibrio lateral de <strong>$absDif kg</strong>. El bote escora excesivamente hacia el lado m&aacute;s pesado, aumentando la superficie mojada (fricci&oacute;n). El patr&oacute;n debe meter tim&oacute;n constantemente para evitar que el bote gire, lo que act&uacute;a como un freno continuo.</span></div>")
+} elseif ($absDif -gt 5) {
+    $h.Add('<div class="info-box" style="margin-top:15px; background:#fffbe6; border-color:#f5c842; color:#7a5a00">')
+    $h.Add('<strong>DESV&Iacute;O LEVE:</strong> Diferencia lateral de <strong>' + $absDif + ' kg</strong>. El bote tender&aacute; a escorar ligeramente. Situaci&oacute;n manejable pero requerir&aacute; peque&ntilde;as correcciones de rumbo por parte del patr&oacute;n.</div>')
 } else {
     $h.Add('<div class="info-box" style="margin-top:15px; background:#f2fdf5; border-color:#ccffdd; color:#145a32">')
-    $h.Add('<strong>TRIMADO &Oacute;PTIMO:</strong> El equilibrio lateral es excelente (diferencia de ' + [math]::Abs($difPeso) + ' kg). El bote navegar&aacute; plano, maximizando la eficiencia de cada palada.</div>')
+    $h.Add('<strong>TRIMADO &Oacute;PTIMO:</strong> El equilibrio lateral es excelente (diferencia de ' + $absDif + ' kg). El bote navegar&aacute; totalmente plano, minimizando la fricci&oacute;n y maximizando la eficiencia de cada palada.</div>')
 }
 $h.Add('</div>')
 $h.Add('</div>') # Cierra el card
@@ -1243,10 +1579,10 @@ $h.Add('</div>')
 $h.Add('<div class="stitle">Conclusiones T&eacute;cnicas Inmediatas</div>')
 $h.Add('<div class="card"><div class="ch"><div class="ico ico-star">*</div><h2>Puntos de Acci&oacute;n Concretos tras la Radiograf&iacute;a F&iacute;sica</h2></div><ul class="rl">')
 
-$h.Add('<li><strong>Corregir el p&aacute;nico hidrodin&aacute;mico a no avanzar.</strong> Al virar en ciaboga y encontrar la Marea Bajando en contra, la reacci&oacute;n de subir frecuencias (34-36 p/min) fue contraproducente. Contra corriente fuerte, m&aacute;s ritmo sin "agarre" solo genera asfixia. La consigna debe ser frialdad: mantener una boga larga para poder "enganchar" las olas de popa que el viento regalaba a la vuelta.</li>')
-$h.Add('<li><strong>Entrenar la caza e identificaci&oacute;n de empopadas.</strong> A pesar de la corriente en contra, el viento de aleta y la ola de popa eran aliados t&aacute;cticos. Los l&iacute;deres abrieron brecha porque surfearon el campo mientras Aizburua luchaba contra el agua. Es cr&iacute;tico que el patr&oacute;n y las bancadas de popa coordinen tirones para capitalizar cada empuje de la ola.</li>')
-$h.Add('<li><strong>Optimizar la geometr&iacute;a del tim&oacute;n (+10s artificiales perdidos).</strong> El Garmin es claro: +40 metros sobre la trazada te&oacute;rica del campo regalan ~9.8 segundos gratis a los rivales. Ce&ntilde;ir el bote lo mejor posible a la cuerda de las balizas supone escalar virtualmente hasta el puesto proyectado de <strong>' + $puestoProy + '&ordm;</strong> clasificado.</li>')
-$h.Add('<li><strong>La Marea Bajando en Calle 1 fue inasumible.</strong> Estructuralmente, la l&iacute;nea interior de la r&iacute;a penaliz&oacute; masivamente el avance. Es una variante externa que solo se mitiga con una gesti&oacute;n t&eacute;cnica impecable del planeo por popa.</li>')
+$h.Add('<li><strong>Alerta de Trimado (Desequilibrio Cr&iacute;tico).</strong> Se rem&oacute; con una descompensaci&oacute;n lateral de <strong>19 kg</strong> hacia babor. Esto es un freno aerodin&aacute;mico severo: el bote escora, aumenta la fricci&oacute;n y obliga al patr&oacute;n a meter tim&oacute;n constantemente. Es imperativo redistribuir los pesos en futuras alineaciones para no regalar vatios al agua.</li>')
+$h.Add('<li><strong>Excelente gesti&oacute;n t&aacute;ctica de "El Muro".</strong> La decisi&oacute;n de bajar la boga a <strong>33-34 p/min</strong> en los largos de vuelta (L2 y L4) fue acertada para buscar agarre contra la vaciante y evitar la asfixia, logrando salvar la integridad f&iacute;sica del bloque pese a la exigencia del campo.</li>')
+$h.Add('<li><strong>Navegaci&oacute;n milim&eacute;trica del Patr&oacute;n.</strong> Pese al desequilibrio de pesos, la trazada ahorr&oacute; <strong>50 metros</strong> netos sobre el campo te&oacute;rico. Esto equivale a una inyecci&oacute;n de 12 segundos "gratis" que mitig&oacute; el hundimiento del cron&oacute;metro.</li>')
+$h.Add('<li><strong>Diagn&oacute;stico del D&eacute;ficit F&iacute;sico.</strong> Descontando el pico explosivo natural de la salida (3:52), el ritmo base real del bote se estableci&oacute; en 4:06 min/km. La p&eacute;rdida de velocidad hasta el 4:25 min/km en el &uacute;ltimo largo evidencia que la brecha (+73.3s) es un factor de resistencia muscular. El objetivo a trabajar debe ser incrementar el vatiaje aer&oacute;bico para lograr sostener ese bloque de 4:06-4:10 durante los 3.500 metros.</li>')
 $h.Add('</ul></div>')
 $h.Add('</div>')
 $h.Add('<div class="ftr">')

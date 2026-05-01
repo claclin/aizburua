@@ -99,20 +99,40 @@ function Get-HcpFromTable([double]$avg, [int]$distanciaM, [int]$numMujeres45) {
     
     # Tabla basada en handicaps.jpg (base 3500m)
     $tabla = @{
-        45=0; 46=1; 47=2; 48=3; 49=4; 50=5; 51=7; 52=9; 53=12; 54=14; 55=16; 56=18; 57=21; 58=24; 59=27; 60=30;
-        61=34; 62=38; 63=42; 64=46; 65=50; 66=54; 67=58; 68=62; 69=66; 70=70
+        45=0; 46=1; 47=2; 48=3; 49=4; 50=6; 51=8; 52=10; 53=12; 54=14; 55=16; 56=19; 57=22; 58=25; 59=28; 60=31;
+        61=35; 62=39; 63=43; 64=47; 65=51
     }
 
     $hcpTabla = if ($v -ge 45 -and $tabla.ContainsKey([int]$v)) { $tabla[[int]$v] } elseif ($v -ge 65) { 50 + ($v - 65) * 4 } else { 0 }
+    $baseHcp = if ($v -ge 45 -and $tabla.ContainsKey([int]$v)) { $tabla[[int]$v] } elseif ($v -ge 65) { 50 + ($v - 65) * 4 } else { 0 }
     
     # Sumar bonificacion de genero: +5s PLANOS por cada mujer >= 45 en la alineacion
     $bonusGenero = $numMujeres45 * 5
     
-    # Escalar HCP (Tabla + Bonus) por distancia real (base 3500m)
-    $factor = $distanciaM / 3500
-    $hcpTotalFinal = ($hcpTabla + $bonusGenero) * $factor
+    # Multiplicador por tramos oficiales (Anexo H&aacute;ndicaps Aplicables)
+    $coef = 1.0
+    if ($distanciaM -ge 4376) { $coef = 1.40 }
+    elseif ($distanciaM -ge 4251) { $coef = 1.35 }
+    elseif ($distanciaM -ge 4126) { $coef = 1.30 }
+    elseif ($distanciaM -ge 4001) { $coef = 1.25 }
+    elseif ($distanciaM -ge 3876) { $coef = 1.20 }
+    elseif ($distanciaM -ge 3751) { $coef = 1.15 }
+    elseif ($distanciaM -ge 3626) { $coef = 1.10 }
+    elseif ($distanciaM -ge 3501) { $coef = 1.05 }
+    elseif ($distanciaM -ge 3401) { $coef = 1.00 }
+    elseif ($distanciaM -ge 3301) { $coef = 0.95 }
+    elseif ($distanciaM -ge 3201) { $coef = 0.90 }
+    elseif ($distanciaM -ge 3101) { $coef = 0.85 }
+    elseif ($distanciaM -ge 3000) { $coef = 0.80 }
+    elseif ($distanciaM -ge 2875) { $coef = 0.75 }
+    elseif ($distanciaM -ge 2750) { $coef = 0.70 }
+    elseif ($distanciaM -ge 2625) { $coef = 0.65 }
+    elseif ($distanciaM -ge 2500) { $coef = 0.60 }
+    else { $coef = ($distanciaM / 3500) } # Fallback lineal para distancias extremas
     
-    return [math]::Round($hcpTotalFinal, 1)
+    # Formula oficial v6.5: (Base + Bonus) * Coeficiente de Tramo
+    $totalSeconds = ($baseHcp + $bonusGenero) * $coef
+    return [math]::Round($totalSeconds, 1)
 }
 
 # Convierte nivel cualitativo de experiencia a puntos (Deposito Neurologico - v4.0)
@@ -777,7 +797,8 @@ foreach ($n in 1..6) {
 
 # Calcula el mejor sustituto disponible en la plantilla para un puesto dado
 # Calcula el mejor sustituto disponible en la plantilla para un puesto dado
-function Get-BestAlternative([string]$posZone, [string]$side, [int]$titularAge, [string]$titularName) {
+# Si se proporciona targetWeight, el sistema prioriza equilibrar la banda
+function Get-BestAlternative([string]$posZone, [string]$side, [int]$titularAge, [string]$titularName, [double]$targetWeight = 0) {
     # Filtro de posicion basado en la zona del bote (posZone tiene prioridad sobre side)
     $posFilter = if ($posZone -eq "PROA") {
         "Proa|Babor|Estribor"               # remeros de cualquier banda o proa pueden ir a proa
@@ -901,9 +922,17 @@ function Get-BestAlternative([string]$posZone, [string]$side, [int]$titularAge, 
         # Cada segundo ganado respecto al titular vale 2.5 pts
         $scoreHcp = $delta * 2.5
 
-        $score = $scoreExp + $scoreBio + $scoreHcp
+        # 4. EQUILIBRIO ESTRUCTURAL (v5.0)
+        # Si hay un targetWeight, restamos puntos segun la desviacion (max -30 pts)
+        $scoreBal = 0
+        if ($targetWeight -gt 0) {
+            $diff = [math]::Abs($pesoC - $targetWeight)
+            $scoreBal = [math]::Max(-30, (15 - $diff) * 2) # Bonus si < 15kg diff, penaliza si > 15kg
+        }
 
-        [PSCustomObject]@{ Rower=$c; Score=$score; HcpDelta=$delta; Edad=$edadC; Peso=$pesoC; Altura=$altC; Anios=$aniosC; Genero=$genC; Hcp=$hcpC; ExpNivel=$expC; ScoreExp=($scoreExp) }
+        $score = $scoreExp + $scoreBio + $scoreHcp + $scoreBal
+
+        [PSCustomObject]@{ Rower=$c; Score=$score; HcpDelta=$delta; Edad=$edadC; Peso=$pesoC; Altura=$altC; Anios=$aniosC; Genero=$genC; Hcp=$hcpC; ExpNivel=$expC; ScoreExp=($scoreExp); ScoreBal=$scoreBal }
     }
     # Umbral minimo de Deposito Neurologico: si ningun candidato supera 15 pts de experiencia,
     # no se sugiere nadie (evitar sugerir perfiles que son un retroceso tactico respecto al titular)
@@ -967,7 +996,7 @@ function Test-PositionFit([string]$posZone, [int]$age, $info) {
     return $true
 }
 
-function Add-RowerRow($posName, $side, $name, $age) {
+function Add-RowerRow($posName, $side, $name, $age, $targetWeight = 0) {
     $info    = Get-RowerFullInfo $name $side
     $imgHtml = if ($info.ImgBase64) { "<img src='data:image/jpeg;base64,$($info.ImgBase64)' class='avatar'>" } else { "<div class='avatar' style='display:flex;align-items:center;justify-content:center;font-weight:900;color:#999'>?</div>" }
     $badge   = if ($side -eq "Babor") { "b-bab" } elseif ($side -eq "Estribor") { "b-est" } else { "badge" }
@@ -981,14 +1010,26 @@ function Add-RowerRow($posName, $side, $name, $age) {
     $expNivText = if ($info.ExpNivel) { $info.ExpNivel } else { "-" }
     $perfilHtml = "$age a. / $pesoText / $altText<br><small style='color:#64748b'>$genIcon &nbsp;Exp: $expNivText</small>"
 
-    # Solo buscar alternativa cuando el puesto NO esta bien cubierto
+    # Buscar alternativa cuando el puesto NO esta bien cubierto O hay desequilibrio critico (>15kg)
     $isFit  = Test-PositionFit $posName $age $info
+    $imbalance = if ($targetWeight -gt 0) { [math]::Abs($info.Peso - $targetWeight) } else { 0 }
+    
     $altHtml = ""
-    if (-not $isFit) {
-        $alt = Get-BestAlternative $posName $side $age $name
+    if (-not $isFit -or $imbalance -gt 15) {
+        $alt = Get-BestAlternative $posName $side $age $name $targetWeight
         if ($alt) {
-            $script:seatsNeedingCascade += @{ Zone = $posName; Side = $side; TitAge = $age; TitName = $name }
             $apodo      = if ($alt.Rower.PSObject.Properties['apodo'] -and $alt.Rower.apodo) { $alt.Rower.apodo } else { $alt.Rower.nombre }
+            $reajusteReason = if (-not $isFit) { "REAJUSTE POR BIOTIPO" } else { "EQUILIBRIO ESTRUCTURAL" }
+            $script:seatsNeedingCascade += @{ 
+                Zone = $posName; 
+                Side = $side; 
+                TitAge = $age; 
+                TitName = $name; 
+                AltName = $apodo;
+                AltPeso = $alt.Peso;
+                AltEdad = $alt.Edad;
+                Reason = $reajusteReason
+            }
             $genIconAlt = if ($alt.Genero -match "Mujer") { "&female;" } else { "&male;" }
             $expAltStr  = if ($alt.ExpNivel) { $alt.ExpNivel } else { "-" }
 
@@ -1021,7 +1062,7 @@ function Add-RowerRow($posName, $side, $name, $age) {
 
             $altLines = @(
                 "<div style='background:#fff7ed;border-left:3px solid #ea580c;padding:10px 12px;border-radius:6px;font-size:14px;line-height:1.6'>",
-                "<strong style='font-size:15px;color:#9a3412'>REAJUSTE SUGERIDO</strong><br>",
+                "<strong style='font-size:15px;color:#9a3412'>$reajusteTitle</strong><br>",
                 "<strong style='font-size:14px'>$($apodo.ToUpper())</strong><br>",
                 "$($alt.Edad) a. / $($alt.Peso) kg / $($alt.Altura) cm &nbsp;$genIconAlt<br>",
                 "Exp: $expAltStr &nbsp;| $($alt.Anios) a&ntilde;os<br>",
@@ -1047,8 +1088,8 @@ foreach ($n in 6..1) {
         $benchAlerts += "<strong>Bancada $n</strong>: Diferencial de <strong>$([math]::Round($difBancada, 1)) kg</strong> ($($rB.DisplayName) vs $($rE.DisplayName))."
     }
 
-    $h.Add((Add-RowerRow "Bancada $n" "Babor" $b.B.nombre $b.B.edad))
-    $h.Add((Add-RowerRow "Bancada $n" "Estribor" $b.E.nombre $b.E.edad))
+    $h.Add((Add-RowerRow "Bancada $n" "Babor" $b.B.nombre $b.B.edad $rE.Peso))
+    $h.Add((Add-RowerRow "Bancada $n" "Estribor" $b.E.nombre $b.E.edad $rB.Peso))
 }
 $h.Add((Add-RowerRow "PATRON" "Centro" $ali.patron.nombre $ali.patron.edad))
 $h.Add("</tbody></table></div>")
@@ -1138,14 +1179,35 @@ if ($ali.proa.edad -gt 60 -or $proelInfo.Peso -gt 80) {
     }
 }
 
-# Producir Informe de Cambios
+# Producir Informe de Cambios (EL MOVIMIENTO MAESTRO)
+$movimientosRealizados = 0
+
+# 1. Prioridad: Corregir fallos de Biotipo o Equilibrio Lateral detectados en el escaneo
+if ($script:seatsNeedingCascade.Count -gt 0) {
+    foreach ($seat in $script:seatsNeedingCascade) {
+        $color = if ($seat.Reason -eq "EQUILIBRIO ESTRUCTURAL") { "#ea580c" } else { "var(--r)" }
+        $h.Add("<p style='font-size:16px; margin-bottom:15px'><strong>MOVIMIENTO DE CORRECCI&Oacute;N ($($seat.Reason)):</strong> Sustituir a <strong>$($seat.TitName) ($($seat.TitAge)a)</strong> por <strong>$($seat.AltName) ($($seat.AltPeso)kg, $($seat.AltEdad)a)</strong>.</p>")
+        $h.Add("<div style='display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:25px'>")
+        $h.Add("<div style='background:white; padding:15px; border-radius:8px; border-left:4px solid $color; flex:1'><strong>Impacto en $($seat.Zone):</strong> La incorporaci&oacute;n de $($seat.AltName) resuelve el d&eacute;ficit de $($seat.Reason.ToLower()).</div>")
+        $h.Add("<div style='background:white; padding:15px; border-radius:8px; border-left:4px solid #1e293b; flex:1'><strong>Justificaci&oacute;n T&aacute;ctica:</strong> Se prioriza la estabilidad del bloque $($seat.Zone) ($($seat.Side)) para garantizar un trimado hidrodin&aacute;mico superior.</div>")
+        $h.Add("</div>")
+        $movimientosRealizados++
+    }
+}
+
+# 2. Secundario: Optimización por torque (Jóvenes vs Veteranos)
 if ($jovenesPopaProa.Count -gt 0 -and $veteranosMotor.Count -gt 0) {
+    $h.Add("<h3 style='color:#1e293b; margin-top:30px; text-transform:uppercase; font-size:16px; border-top:1px solid #fee2e2; padding-top:20px'>Optimizaci&oacute;n de Torque (Intercambios Internos)</h3>")
     foreach ($joven in $jovenesPopaProa) {
+        # Evitar duplicar si el joven ya fue sugerido para cambio desde el banquillo
+        $yaSustituido = $script:seatsNeedingCascade | Where-Object { $_.TitName -eq $joven.Nombre }
+        if ($yaSustituido) { continue }
+        
         $vetNombres = ($veteranosMotor | ForEach-Object { "$($_.Nombre) ($($_.Edad)a)" }) -join " o "
         $h.Add("<p style='font-size:16px; margin-bottom:15px'><strong>PROPUESTA INTERNA:</strong> Intercambiar a <strong>$($joven.Nombre) ($($joven.Peso)kg)</strong> con <strong>$vetNombres</strong>.</p>")
         $h.Add("<div style='display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:25px'>")
-        $h.Add("<div style='background:white; padding:15px; border-radius:8px; border-left:4px solid var(--r); flex:1'><strong>Rol de $($joven.Nombre):</strong> Aportar&aacute; sus $($joven.Peso)kg de masa activa en el bloque motor. Justificaci&oacute;n: Mayor torque y aprovechamiento de sus $($joven.Edad) a&ntilde;os de fuerza explosiva.</div>")
-        $h.Add("<div style='background:white; padding:15px; border-radius:8px; border-left:4px solid #1e293b; flex:1'><strong>Rol de ${vetNombres}:</strong> Asegurar el ritmo estable en Bancada $($joven.Bancada). Justificaci&oacute;n: Su veteran&iacute;a compensa el lactato en la zona de marca final.</div>")
+        $h.Add("<div style='background:white; padding:15px; border-radius:8px; border-left:4px solid var(--r); flex:1'><strong>Rol de $($joven.Nombre):</strong> Aportar&aacute; sus $($joven.Peso)kg de masa activa en el bloque motor. Justificaci&oacute;n: Mayor torque y aprovechamiento de fuerza explosiva.</div>")
+        $h.Add("<div style='background:white; padding:15px; border-radius:8px; border-left:4px solid #1e293b; flex:1'><strong>Rol de ${vetNombres}:</strong> Asegurar el ritmo estable en Bancada $($joven.Bancada). Justificaci&oacute;n: Su veteran&iacute;a compensa el lactato en puntas.</div>")
         $h.Add("</div>")
     }
 }

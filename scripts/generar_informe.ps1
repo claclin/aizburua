@@ -1,62 +1,36 @@
 param([Parameter(Mandatory = $true)][string]$RegataName)
-# Set-StrictMode -Version Latest # Deshabilitado para permitir acceso flexible a propiedades JSON opcionales
-$ErrorActionPreference = "Stop"
-$rootPath = Resolve-Path (Join-Path $PSScriptRoot "..") 
-$jsonPath = Join-Path $rootPath "data\historico-regatas.json"
-$plantillaPath = Join-Path $rootPath "data\plantilla_remeros.json"
-$remerosPath = Join-Path $rootPath "remeros"
-$outPath = Join-Path $rootPath "informes"
-$safe = $RegataName -replace '[^\w]', '_'
-$htmlFile = Join-Path $outPath "Informe_Aizburua_$safe.html"
-
-if (-not(Test-Path $outPath)) { New-Item -ItemType Directory -Path $outPath | Out-Null }
-$data = Get-Content $jsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
-$regata = $data.regatas | Where-Object { $_.nombre_corto -eq $RegataName -or $_.nombre -like "*$RegataName*" } | Select-Object -First 1
-if (-not $regata) { Write-Error "Regata no encontrada en el historico"; exit 1 }
-
-$remerosDB = @()
-if (Test-Path $plantillaPath) {
-    $remerosDB = Get-Content $plantillaPath -Raw -Encoding UTF8 | ConvertFrom-Json
+# --- Motor de Auditoría de Hándicap v6.6 (Basado en handicaps2.jpeg) ---
+function Get-OfficialHcp($avgAge, $distanciaOficial, $womenCount) {
+    $age = [math]::Floor($avgAge)
+    $tabla = @{ 45=0; 46=1; 47=2; 48=3; 49=4; 50=6; 51=8; 52=10; 53=12; 54=14; 55=16; 56=19; 57=22; 58=25; 59=28; 60=31; 61=35; 62=39; 63=43; 64=47; 65=51 }
+    $base = if ($age -ge 65) { 51 + ($age - 65) * 4 } elseif ($tabla.ContainsKey($age)) { $tabla[$age] } else { 0 }
+    
+    $bonusGenero = $womenCount * 5.0
+    
+    # Coeficiente por tramos oficiales (Tabla 125m)
+    $coef = 1.0
+    if ($distanciaOficial -ge 4376) { $coef = 1.40 }
+    elseif ($distanciaOficial -ge 4251) { $coef = 1.35 }
+    elseif ($distanciaOficial -ge 4126) { $coef = 1.30 }
+    elseif ($distanciaOficial -ge 4001) { $coef = 1.25 }
+    elseif ($distanciaOficial -ge 3876) { $coef = 1.20 }
+    elseif ($distanciaOficial -ge 3751) { $coef = 1.15 }
+    elseif ($distanciaOficial -ge 3626) { $coef = 1.10 }
+    elseif ($distanciaOficial -ge 3501) { $coef = 1.05 }
+    elseif ($distanciaOficial -ge 3401) { $coef = 1.00 }
+    elseif ($distanciaOficial -ge 3301) { $coef = 0.95 }
+    elseif ($distanciaOficial -ge 3201) { $coef = 0.90 }
+    elseif ($distanciaOficial -ge 3101) { $coef = 0.85 }
+    elseif ($distanciaOficial -ge 3000) { $coef = 0.80 }
+    elseif ($distanciaOficial -ge 2875) { $coef = 0.75 }
+    elseif ($distanciaOficial -ge 2750) { $coef = 0.70 }
+    elseif ($distanciaOficial -ge 2625) { $coef = 0.65 }
+    elseif ($distanciaOficial -ge 2500) { $coef = 0.60 }
+    
+    return [math]::Round(($base + $bonusGenero) * $coef, 1)
 }
 
-$cond = $regata.condiciones_campo
-$aizd = $regata.aizburua
-
-$ali = $null
-if ($aizd.PSObject.Properties['alineacion']) { $ali = $aizd.alineacion }
-$g1 = $null
-if ($regata.grupos.PSObject.Properties['grupo_1']) { $g1 = $regata.grupos.grupo_1 }
-$g2 = $null
-if ($regata.grupos.PSObject.Properties['grupo_2']) { $g2 = $regata.grupos.grupo_2 }
-
-# Resultados y Top 3 (usando Grupo 1 por defecto o el que contenga a Aizburua)
-$mainGroup = $g1
-if ($aizd.PSObject.Properties['grupo']) { $mainGroup = $regata.grupos.$($aizd.grupo) }
-$res = @()
-if ($mainGroup) { 
-    # Filtrar invitados (Sestao, Castreña) si el usuario lo prefiere para el análisis de liga
-    $res = @($mainGroup.resultados | Where-Object { $_.club -notmatch "SESTAO|CASTREÑA" } | Sort-Object { [double]($_.puesto) })
-}
-$aiz = $res | Where-Object { $_.club -eq "AIZBURUA" } | Select-Object -First 1
-$top1 = $res | Where-Object { [int]$_.puesto -eq 1 } | Select-Object -First 1
-$top2 = $res | Where-Object { [int]$_.puesto -eq 2 } | Select-Object -First 1
-$top3 = $res | Where-Object { [int]$_.puesto -eq 3 } | Select-Object -First 1
-
-# ---------- Activos Visuales (Logos) ----------
-$logo1Base64 = "" ; $logo2Base64 = ""
-$logo1Path = Join-Path $rootPath "Logo1.jpg"
-$logo2Path = Join-Path $rootPath "Logo2.jpg"
-
-if (Test-Path $logo1Path) {
-    $bytes = [System.IO.File]::ReadAllBytes($logo1Path)
-    $logo1Base64 = [System.Convert]::ToBase64String($bytes)
-}
-if (Test-Path $logo2Path) {
-    $bytes = [System.IO.File]::ReadAllBytes($logo2Path)
-    $logo2Base64 = [System.Convert]::ToBase64String($bytes)
-}
-
-# ---------- Funciones ----------
+# ---------- Funciones Auxiliares ----------
 function TS([string]$t) {
     if (-not $t) { return 0.0 }
     if ($t -match '^(\d+):(\d+)[,.](\d+)$') { return [double]$Matches[1] * 60 + [double]$Matches[2] + [double]("0." + $Matches[3]) }
@@ -170,6 +144,64 @@ function Get-RowerInfo([string]$name, [string]$posicion) {
         Anios        = $anios
     }
 }
+
+# Set-StrictMode -Version Latest # Deshabilitado para permitir acceso flexible a propiedades JSON opcionales
+$ErrorActionPreference = "Stop"
+$rootPath = Resolve-Path (Join-Path $PSScriptRoot "..") 
+$jsonPath = Join-Path $rootPath "data\historico-regatas.json"
+$plantillaPath = Join-Path $rootPath "data\plantilla_remeros.json"
+$remerosPath = Join-Path $rootPath "remeros"
+$outPath = Join-Path $rootPath "informes"
+$safe = $RegataName -replace '[^\w]', '_'
+$htmlFile = Join-Path $outPath "Informe_Aizburua_$safe.html"
+
+if (-not(Test-Path $outPath)) { New-Item -ItemType Directory -Path $outPath | Out-Null }
+$data = Get-Content $jsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$regata = $data.regatas | Where-Object { $_.nombre_corto -eq $RegataName -or $_.nombre -like "*$RegataName*" } | Select-Object -First 1
+if (-not $regata) { Write-Error "Regata no encontrada en el historico"; exit 1 }
+
+$remerosDB = @()
+if (Test-Path $plantillaPath) {
+    $remerosDB = Get-Content $plantillaPath -Raw -Encoding UTF8 | ConvertFrom-Json
+}
+
+$cond = $regata.condiciones_campo
+$aizd = $regata.aizburua
+
+$ali = $null
+if ($aizd.PSObject.Properties['alineacion']) { $ali = $aizd.alineacion }
+$g1 = $null
+if ($regata.grupos.PSObject.Properties['grupo_1']) { $g1 = $regata.grupos.grupo_1 }
+$g2 = $null
+if ($regata.grupos.PSObject.Properties['grupo_2']) { $g2 = $regata.grupos.grupo_2 }
+
+# Resultados y Top 3 (usando Grupo 1 por defecto o el que contenga a Aizburua)
+$mainGroup = $g1
+if ($aizd.PSObject.Properties['grupo']) { $mainGroup = $regata.grupos.$($aizd.grupo) }
+$res = @()
+if ($mainGroup) { 
+    # Filtrar invitados (Sestao, Castreña) si el usuario lo prefiere para el análisis de liga
+    $res = @($mainGroup.resultados | Where-Object { $_.club -notmatch "SESTAO|CASTREÑA" } | Sort-Object { [double]($_.puesto) })
+}
+$aiz = $res | Where-Object { $_.club -eq "AIZBURUA" } | Select-Object -First 1
+$top1 = $res | Where-Object { [int]$_.puesto -eq 1 } | Select-Object -First 1
+$top2 = $res | Where-Object { [int]$_.puesto -eq 2 } | Select-Object -First 1
+$top3 = $res | Where-Object { [int]$_.puesto -eq 3 } | Select-Object -First 1
+
+# ---------- Activos Visuales (Logos) ----------
+$logo1Base64 = "" ; $logo2Base64 = ""
+$logo1Path = Join-Path $rootPath "Logo1.jpg"
+$logo2Path = Join-Path $rootPath "Logo2.jpg"
+
+if (Test-Path $logo1Path) {
+    $bytes = [System.IO.File]::ReadAllBytes($logo1Path)
+    $logo1Base64 = [System.Convert]::ToBase64String($bytes)
+}
+if (Test-Path $logo2Path) {
+    $bytes = [System.IO.File]::ReadAllBytes($logo2Path)
+    $logo2Base64 = [System.Convert]::ToBase64String($bytes)
+}
+
 
 # ---------- Calculos de tiempos ----------
 $sa = 0; $sg = 0; $s2t = 0; $s3t = 0; $sciaAiz = 0; $sciaG1 = 0; $sciaG2 = 0; $sciaG3 = 0
@@ -416,13 +448,25 @@ function New-RowerCell($name, $pos, $isBabor) {
 $proaCell = New-RowerCell $ali.proa.nombre "Proa" $false
 [void]$trAli.AppendLine("<tr class='proa-row'><td class='bn'>PROA</td><td colspan='2' style='text-align:center'>$proaCell</td></tr>")
 
-# --- BANCADAS ---
+# --- BANCADAS (Auditoría v6.0) ---
 foreach ($n in 6..1) {
     $b = $ali.bancadas."$n"
     $lbl = if ($n -eq 1) { "1 - POPA" } else { "$n" }
+    
+    $rB = Get-RowerInfo $b.B.nombre "Babor"
+    $rE = Get-RowerInfo $b.E.nombre "Estribor"
+    
     $bCell = New-RowerCell $b.B.nombre "Babor" $true
     $eCell = New-RowerCell $b.E.nombre "Estribor" $false
+    
+    $difBancada = [math]::Abs($rB.Peso - $rE.Peso)
+    $alertaEq = ""
+    if ($difBancada -gt 15) {
+        $alertaEq = "<tr><td colspan='3'><div class='tactical-alert'>$svgIcon <strong>ALERTA DE EQUILIBRIO:</strong> Asimetr&iacute;a cr&iacute;tica en Bancada $n ($([math]::Round($difBancada,1)) kg). El bote tiende a escorar hacia $(if($rB.Peso -gt $rE.Peso){"Babor"}else{"Estribor"}).</div></td></tr>"
+    }
+
     [void]$trAli.AppendLine("<tr><td class='bn'>Bancada $lbl</td><td class='bab'>$bCell</td><td class='est'>$eCell</td></tr>")
+    if ($alertaEq) { [void]$trAli.AppendLine($alertaEq) }
 }
 
 # --- PATRON ---
@@ -571,7 +615,6 @@ if ($g2 -and $g2.resultados) {
 }
 $g1Gan = if ($g1) { $g1.ganador } else { "" } ; $g1GanRaw = if ($g1) { $g1.tiempo_ganador_raw } else { "" } ; $g1GanFin = if ($g1) { $g1.tiempo_ganador_final } else { "" }
 $g2Gan = if ($g2) { $g2.ganador } else { "" } ; $g2GanRaw = if ($g2) { $g2.tiempo_ganador_raw } else { "" } ; $g2GanFin = if ($g2) { $g2.tiempo_ganador_final } else { "" }
-Write-Host "DEBUG: Tiempos de grupo calculados: G1=$g1Hora-$g1FinHora"
 
 # ---------- METEOROLOGIA REAL (Boga Aizburua) ----------
 $meteoReal = Get-MeteoByTime $aizHora
@@ -585,6 +628,28 @@ $CondMar = if ($meteoReal.ola_desc) { $meteoReal.ola_desc } else { "$($cond.olas
 $CondAire = $cond.temperatura_aire_c
 $CondAgua = $cond.temperatura_agua_c
 $CondSal = $cond.salinidad_psu
+# Auditoría de Hándicap Aizburua
+$countFem = 0
+foreach ($name in @($ali.proa.nombre, $ali.patron.nombre)) {
+    $dbR = $remerosDB | Where-Object { $_.nombre.Replace(".", "").Trim() -ieq $name.Replace(".", "").Trim() -or $_.apodo -ieq $name.Replace(".", "").Trim() } | Select-Object -First 1
+    if ($dbR.genero -ieq "Femenino" -and $dbR.edad -ge 45) { $countFem++ }
+}
+foreach ($n in 1..6) {
+    foreach ($side in @("B", "E")) {
+        $name = $ali.bancadas."$n".$side.nombre
+        $dbR = $remerosDB | Where-Object { $_.nombre.Replace(".", "").Trim() -ieq $name.Replace(".", "").Trim() -or $_.apodo -ieq $name.Replace(".", "").Trim() } | Select-Object -First 1
+        if ($dbR.genero -ieq "Femenino" -and $dbR.edad -ge 45) { $countFem++ }
+    }
+}
+
+$hcpTeorico = Get-OfficialHcp $edadMedia $regata.distancia_m $countFem
+$hcpOficial = TS $aizHcp
+$discrepanciaHcp = [math]::Abs($hcpTeorico - $hcpOficial)
+$alertaHcpHtml = ""
+if ($discrepanciaHcp -gt 0.2) {
+    $alertaHcpHtml = "    `$h.Add('<div class=''tactical-alert'' style=''margin-top:10px; border-left-color:#1e3a5f; background:#f0f4ff''><strong>AUDITOR&Iacute;A DE H&Aacute;NDICAP:</strong> El h&aacute;ndicap asignado ($hcpOficial s) difiere del c&aacute;lculo te&oacute;rico ($hcpTeorico s) seg&uacute;n la tabla oficial de tramos para $($regata.distancia_m)m. Recomienda revisi&oacute;n con el comit&eacute;.</div>')"
+}
+
 # Densidad calculada dinamicamente: agua salada ~1025 + aprox. 0.4 kg/m3 por PSU extra sobre 35
 $CondDens = [math]::Round(1000 + ($CondSal * 0.7) + (0.006 * (1500 - ($CondAgua * 100))), 1)
 $CondCoef = $cond.marea.coeficiente
@@ -1574,6 +1639,8 @@ $h.Add('<div class="st"><div class="lbl">Media Bloque Proa (B5-B6)</div><div cla
 $h.Add('</div>')
 $h.Add('<div class="info-box" style="font-size:11px"><strong>Para qu&eacute; sirve esto en futuras regatas:</strong> La edad media de la tripulaci&oacute;n cambia con cada regata seg&uacute;n la alineaci&oacute;n. Correlacionar la edad media con el tiempo real remado permitir&aacute; identificar si existe un umbral &oacute;ptimo de edad para esta tripulaci&oacute;n, y si la rotaci&oacute;n de remeros entre regatas afecta positiva o negativamente al rendimiento. En categor&iacute;a veteranos, factores como la gesti&oacute;n energ&eacute;tica y la t&eacute;cnica compensan la p&eacute;rdida de potencia bruta por edad.</div>')
 $h.Add('</div>')
+
+if ($alertaHcpHtml) { $alertaHcpHtml }
 
 # -------- RECOMENDACIONES --------
 $h.Add('<div class="stitle">Conclusiones T&eacute;cnicas Inmediatas</div>')

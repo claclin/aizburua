@@ -548,7 +548,7 @@ $edadMedia = if ($edadesConfirmadas.Count -gt 0) { [math]::Round(($edadesConfirm
 $edadMediaStr = if ($edadMedia) { "${edadMedia} a&ntilde;os" }else { "Pendiente" }
 $edadMin = if ($edadesConfirmadas.Count -gt 0) { ($edadesConfirmadas | Measure-Object -Minimum).Minimum }else { $null }
 $edadMax = if ($edadesConfirmadas.Count -gt 0) { ($edadesConfirmadas | Measure-Object -Maximum).Maximum }else { $null }
-$edadRangoStr = if ($edadMin -ne $null -and $edadMax -ne $null) { "${edadMin} - ${edadMax} a&ntilde;os" }else { "Pendiente" }
+$edadRangoStr = if ($null -ne $edadMin -and $null -ne $edadMax) { "${edadMin} - ${edadMax} a&ntilde;os" }else { "Pendiente" }
 
 
 # Analisis especifico por bloque Popa (bancadas 1-2) vs Proa (bancadas 5-6)
@@ -630,8 +630,12 @@ if ($g2 -and $g2.resultados) {
     $resTmp2 = @($g2.resultados | Sort-Object { HM $_.hora_salida })
     if ($resTmp2.Count -gt 0) { $g2FinHora = $resTmp2[-1].hora_salida }
 }
-$g1Gan = $(if ($g1) { $g1.ganador } else { "" }) ; $g1GanRaw = $(if ($g1) { $g1.tiempo_ganador_raw } else { "" }) ; $g1GanFin = $(if ($g1) { $g1.tiempo_ganador_final } else { "" })
-$g2Gan = $(if ($g2) { $g2.ganador } else { "" }) ; $g2GanRaw = $(if ($g2) { $g2.tiempo_ganador_raw } else { "" }) ; $g2GanFin = $(if ($g2) { $g2.tiempo_ganador_final } else { "" })
+$g1Gan = $(if ($g1) { $g1.ganador } else { "" })
+$g1GanRaw = $(if ($g1) { $g1.tiempo_ganador_raw } else { "" })
+$g1GanFin = $(if ($g1) { $g1.tiempo_ganador_final } else { "" })
+$g2Gan = $(if ($g2) { $g2.ganador } else { "" })
+$g2GanRaw = $(if ($g2) { $g2.tiempo_ganador_raw } else { "" })
+$g2GanFin = $(if ($g2) { $g2.tiempo_ganador_final } else { "" })
 
 # ---------- METEOROLOGIA REAL (Boga Aizburua) ----------
 $meteoReal = Get-MeteoByTime $aizHora
@@ -645,6 +649,7 @@ $CondMar = $(if ($meteoReal.ola_desc) { $meteoReal.ola_desc } else { "$($cond.ol
 $CondAire = $cond.temperatura_aire_c
 $CondAgua = $cond.temperatura_agua_c
 $CondSal = $cond.salinidad_psu
+
 # Auditoría de Hándicap Aizburua
 $countFem = 0
 foreach ($name in @($ali.proa.nombre, $ali.patron.nombre)) {
@@ -667,7 +672,7 @@ if ($discrepanciaHcp -gt 0.2) {
     $alertaHcpHtml = "<div class='tactical-alert' style='margin-top:10px; border-left-color:#1e3a5f; background:#f0f4ff'><strong>AUDITOR&Iacute;A DE H&Aacute;NDICAP:</strong> El h&aacute;ndicap asignado ($hcpOficial s) difiere del c&aacute;lculo te&oacute;rico ($hcpTeorico s) seg&uacute;n la tabla oficial de tramos para $($regata.distancia_m)m. Recomienda revisi&oacute;n con el comit&eacute;.</div>"
 }
 
-# Densidad calculada dinamicamente: agua salada ~1025 + aprox. 0.4 kg/m3 por PSU extra sobre 35
+# Densidad calculada dinamicamente
 $CondDens = [math]::Round(1000 + ($CondSal * 0.7) + (0.006 * (1500 - ($CondAgua * 100))), 1)
 $CondCoef = $cond.marea.coeficiente
 $MareaPM = $cond.marea.pleamar_1
@@ -682,11 +687,16 @@ $s3t = TS $top3.tiempo_raw
 $avgG1 = TS $mediaG1Fmt
 $avgT1 = TS $mediaT1Fmt
 
-$dG1 = DiffStr $sg $sa    ; $pG1 = PctStr $sg $sa
-$dG2 = DiffStr $s2t $sa   ; $pG2 = PctStr $s2t $sa
-$dG3 = DiffStr $s3t $sa   ; $pG3 = PctStr $s3t $sa
-$dGm1 = DiffStr $avgG1 $sa ; $pGm1 = PctStr $avgG1 $sa
-$dTm1 = DiffStr $avgT1 $sa ; $pTm1 = PctStr $avgT1 $sa
+$dG1 = DiffStr $sg $sa
+$pG1 = PctStr $sg $sa
+$dG2 = DiffStr $s2t $sa
+$pG2 = PctStr $s2t $sa
+$dG3 = DiffStr $s3t $sa
+$pG3 = PctStr $s3t $sa
+$dGm1 = DiffStr $avgG1 $sa
+$pGm1 = PctStr $avgG1 $sa
+$dTm1 = DiffStr $avgT1 $sa
+$pTm1 = PctStr $avgT1 $sa
 
     # ---------- ANALISIS RIVALES DIRECTOS PLAYOFF ----------
     $rivalesNombres = @("SANTURTZI", "ITSASOKO AMA", "PLENTZIA", "BILBAO", "IBERIA", "ILLUNBE", "PONTEJOS")

@@ -618,24 +618,24 @@ $aizPuestoNorm = ($g1.resultados | Where-Object { (TS $_.tiempo_final) -lt $sAiz
 
 $RegLugar = $regata.lugar
 Write-Host "DEBUG: Iniciando calculos de tiempos..."
-$g1Hora = if ($g1) { $g1.hora_inicio } else { "---" }
+$g1Hora = $(if ($g1) { $g1.hora_inicio } else { "---" })
 $g1FinHora = "---"
 if ($g1 -and $g1.resultados) {
     $resTmp = @($g1.resultados | Sort-Object { HM $_.hora_salida })
     if ($resTmp.Count -gt 0) { $g1FinHora = $resTmp[-1].hora_salida }
 }
-$g2Hora = if ($g2) { $g2.hora_inicio } else { "---" }
+$g2Hora = $(if ($g2) { $g2.hora_inicio } else { "---" })
 $g2FinHora = "---"
 if ($g2 -and $g2.resultados) {
     $resTmp2 = @($g2.resultados | Sort-Object { HM $_.hora_salida })
     if ($resTmp2.Count -gt 0) { $g2FinHora = $resTmp2[-1].hora_salida }
 }
-$g1Gan = if ($g1) { $g1.ganador } else { "" } ; $g1GanRaw = if ($g1) { $g1.tiempo_ganador_raw } else { "" } ; $g1GanFin = if ($g1) { $g1.tiempo_ganador_final } else { "" }
-$g2Gan = if ($g2) { $g2.ganador } else { "" } ; $g2GanRaw = if ($g2) { $g2.tiempo_ganador_raw } else { "" } ; $g2GanFin = if ($g2) { $g2.tiempo_ganador_final } else { "" }
+$g1Gan = $(if ($g1) { $g1.ganador } else { "" }) ; $g1GanRaw = $(if ($g1) { $g1.tiempo_ganador_raw } else { "" }) ; $g1GanFin = $(if ($g1) { $g1.tiempo_ganador_final } else { "" })
+$g2Gan = $(if ($g2) { $g2.ganador } else { "" }) ; $g2GanRaw = $(if ($g2) { $g2.tiempo_ganador_raw } else { "" }) ; $g2GanFin = $(if ($g2) { $g2.tiempo_ganador_final } else { "" })
 
 # ---------- METEOROLOGIA REAL (Boga Aizburua) ----------
 $meteoReal = Get-MeteoByTime $aizHora
-$CondVkmh = if ($meteoReal.viento_kmh) { $meteoReal.viento_kmh } else { $cond.viento.velocidad_kmh }
+$CondVkmh = $(if ($meteoReal.viento_kmh) { $meteoReal.viento_kmh } else { $cond.viento.velocidad_kmh })
 $CondVms = [math]::Round($CondVkmh / 3.6, 1)
 $CondVdir = $(if ($meteoReal.viento_dir) { $meteoReal.viento_dir } else { $cond.viento.direccion })
 $CondVdesc = "Fuerza $($cond.viento.fuerza_beaufort) Beaufort"

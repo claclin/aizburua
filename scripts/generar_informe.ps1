@@ -1663,6 +1663,49 @@ $h.Add('</body></html>')
 
 $content = $h -join "`n"
 [System.IO.File]::WriteAllText($htmlFile, $content, [System.Text.Encoding]::UTF8)
-Write-Host "HTML generado: $htmlFile"
+
+# --- SINCRONIZACION AUTOMATICA DE ESTADISTICAS (v6.9) ---
+function Sync-RowerStats {
+    param([string]$dataPath)
+    $remerosPath = "$dataPath\plantilla_remeros.json"
+    $historicoPath = "$dataPath\historico-regatas.json"
+    if (-not (Test-Path $remerosPath) -or -not (Test-Path $historicoPath)) { return }
+    $remeros = Get-Content $remerosPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $historico = Get-Content $historicoPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    foreach ($r in $remeros) {
+        if (-not $r.PSObject.Properties['regatas_temporada']) {
+            $r | Add-Member -MemberType NoteProperty -Name 'regatas_temporada' -Value 0 -Force
+        } else { $r.regatas_temporada = 0 }
+    }
+    foreach ($reg in $historico.regatas) {
+        if (-not $reg.aizburua -or -not $reg.aizburua.alineacion) { continue }
+        $nombresEnRegata = @()
+        if ($reg.aizburua.patron) { $nombresEnRegata += $reg.aizburua.patron.ToUpper().Trim() }
+        if ($reg.aizburua.proa)   { $nombresEnRegata += $reg.aizburua.proa.ToUpper().Trim() }
+        $ali = $reg.aizburua.alineacion
+        foreach ($banda in @('babor', 'estribor')) {
+            if ($ali.$banda) {
+                foreach ($prop in $ali.$banda.PSObject.Properties) {
+                    if ($prop.Value) { $nombresEnRegata += $prop.Value.ToUpper().Trim() }
+                }
+            }
+        }
+        foreach ($nom in $nombresEnRegata) {
+            $match = $remeros | Where-Object { 
+                ($_.nombre.ToUpper().Trim() -eq $nom) -or 
+                ($_.PSObject.Properties['apodo'] -and $_.apodo.ToUpper().Trim() -eq $nom) -or
+                ($nom -eq "POTXE" -and $_.apodo -eq "Potxe") -or
+                ($nom -eq "JABIER" -and $_.apodo -eq "Jabier") -or
+                ($nom -eq "JAVIER" -and $_.nombre -eq "Javier" -and $_.edad -eq 60)
+            } | Select-Object -First 1
+            if ($match) { $match.regatas_temporada++ }
+        }
+    }
+    $remeros | ConvertTo-Json -Depth 10 | Set-Content $remerosPath -Encoding UTF8
+}
+Sync-RowerStats -dataPath $dataPath
+
+Write-Host "HTML generado: $htmlFile" -ForegroundColor Green
+Write-Host "Estadisticas de remeros sincronizadas." -ForegroundColor Cyan
 Write-Host "Recomendacion: Usa Chrome (Ctrl+P) si deseas guardar el informe como PDF."
 Invoke-Item $htmlFile

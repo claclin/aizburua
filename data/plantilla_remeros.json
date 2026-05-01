@@ -7,7 +7,8 @@
     "experiencia": "Nuevo",
     "altura_cm": 169,
     "peso_kg": 78.5,
-    "experiencia_años": 1
+    "experiencia_años": 1,
+    "regatas_temporada": 0
   },
   {
     "nombre": "Maite Zarra",
@@ -18,7 +19,8 @@
     "apodo": "Maite Zarra",
     "altura_cm": 165,
     "peso_kg": 77.6,
-    "experiencia_años": 3
+    "experiencia_años": 3,
+    "regatas_temporada": 0
   },
   {
     "nombre": "Aitor",
@@ -28,7 +30,8 @@
     "experiencia": "Media - Alta",
     "altura_cm": 173,
     "peso_kg": 96,
-    "experiencia_años": 8
+    "experiencia_años": 8,
+    "regatas_temporada": 0
   },
   {
     "nombre": "Gorka",
@@ -39,7 +42,8 @@
     "apodo": "GizonTxiki",
     "altura_cm": 190,
     "peso_kg": 97,
-    "experiencia_años": 3
+    "experiencia_años": 3,
+    "regatas_temporada": 2
   },
   {
     "nombre": "Jorge",
@@ -49,7 +53,8 @@
     "experiencia": "Media - Alta",
     "altura_cm": 180,
     "peso_kg": 77,
-    "experiencia_años": 5
+    "experiencia_años": 5,
+    "regatas_temporada": 1
   },
   {
     "nombre": "Rubens",
@@ -59,7 +64,8 @@
     "experiencia": "Alta",
     "altura_cm": 177,
     "peso_kg": 69,
-    "experiencia_años": 12
+    "experiencia_años": 12,
+    "regatas_temporada": 2
   },
   {
     "nombre": "Txema",
@@ -69,7 +75,8 @@
     "experiencia": "Alta",
     "altura_cm": 178,
     "peso_kg": 70,
-    "experiencia_años": 10
+    "experiencia_años": 10,
+    "regatas_temporada": 2
   },
   {
     "nombre": "Asier",
@@ -79,7 +86,8 @@
     "experiencia": "Media",
     "altura_cm": 171,
     "peso_kg": 74,
-    "experiencia_años": 2
+    "experiencia_años": 2,
+    "regatas_temporada": 2
   },
   {
     "nombre": "J.Antonio",
@@ -90,7 +98,8 @@
     "apodo": "Potxe",
     "altura_cm": 180,
     "peso_kg": 71,
-    "experiencia_años": 18
+    "experiencia_años": 18,
+    "regatas_temporada": 2
   },
   {
     "nombre": "Claudio",
@@ -100,7 +109,8 @@
     "experiencia": "Alta",
     "altura_cm": 182,
     "peso_kg": 77.5,
-    "experiencia_años": 12
+    "experiencia_años": 12,
+    "regatas_temporada": 2
   },
   {
     "nombre": "Ekaitz",
@@ -110,7 +120,8 @@
     "experiencia": "Nuevo",
     "altura_cm": 171,
     "peso_kg": 85,
-    "experiencia_años": 1
+    "experiencia_años": 1,
+    "regatas_temporada": 0
   },
   {
     "nombre": "Iratxe",
@@ -120,7 +131,8 @@
     "experiencia": "Media",
     "altura_cm": 162,
     "peso_kg": 45,
-    "experiencia_años": 5
+    "experiencia_años": 5,
+    "regatas_temporada": 1
   },
   {
     "nombre": "F. Javier",
@@ -131,7 +143,8 @@
     "apodo": "Jabier",
     "altura_cm": 180,
     "peso_kg": 84,
-    "experiencia_años": 8
+    "experiencia_años": 8,
+    "regatas_temporada": 0
   },
   {
     "nombre": "Maite",
@@ -142,7 +155,8 @@
     "apodo": "Maite",
     "altura_cm": 173,
     "peso_kg": 89.7,
-    "experiencia_años": 4
+    "experiencia_años": 4,
+    "regatas_temporada": 0
   },
   {
     "nombre": "Miguel",
@@ -152,7 +166,8 @@
     "experiencia": "Media",
     "altura_cm": 180,
     "peso_kg": 75,
-    "experiencia_años": 2
+    "experiencia_años": 2,
+    "regatas_temporada": 1
   },
   {
     "nombre": "Oskar",
@@ -162,7 +177,8 @@
     "experiencia": "Alta",
     "altura_cm": 174,
     "peso_kg": 78,
-    "experiencia_años": 11
+    "experiencia_años": 11,
+    "regatas_temporada": 0
   },
   {
     "nombre": "Igor",
@@ -172,7 +188,8 @@
     "experiencia": "Alta",
     "altura_cm": 176,
     "peso_kg": 80,
-    "experiencia_años": 11
+    "experiencia_años": 11,
+    "regatas_temporada": 2
   },
   {
     "nombre": "Tomas",
@@ -182,7 +199,8 @@
     "experiencia": "Alta",
     "altura_cm": 183,
     "peso_kg": 87,
-    "experiencia_años": 14
+    "experiencia_años": 14,
+    "regatas_temporada": 2
   },
   {
     "nombre": "Pedro",
@@ -192,7 +210,8 @@
     "experiencia": "Alta",
     "altura_cm": 189,
     "peso_kg": 82.5,
-    "experiencia_años": 12
+    "experiencia_años": 12,
+    "regatas_temporada": 2
   },
   {
     "nombre": "Fernando",
@@ -203,7 +222,8 @@
     "apodo": "Fer",
     "altura_cm": 175,
     "peso_kg": 70,
-    "experiencia_años": 4
+    "experiencia_años": 4,
+    "regatas_temporada": 1
   },
   {
     "nombre": "Ainhoa",
@@ -213,7 +233,8 @@
     "experiencia": "Alta",
     "altura_cm": 167,
     "peso_kg": 64,
-    "experiencia_años": 7
+    "experiencia_años": 7,
+    "regatas_temporada": 1
   },
   {
     "nombre": "Javier",
@@ -223,7 +244,8 @@
     "experiencia": "Alta",
     "altura_cm": 182,
     "peso_kg": 70,
-    "experiencia_años": 33
+    "experiencia_años": 33,
+    "regatas_temporada": 2
   },
   {
     "nombre": "Txelo",
@@ -233,7 +255,8 @@
     "experiencia": "Media",
     "altura_cm": 168,
     "peso_kg": 68,
-    "experiencia_años": 4
+    "experiencia_años": 4,
+    "regatas_temporada": 0
   },
   {
     "nombre": "Roberto",
@@ -243,7 +266,8 @@
     "experiencia": "Alta",
     "altura_cm": 168,
     "peso_kg": 70,
-    "experiencia_años": 12
+    "experiencia_años": 12,
+    "regatas_temporada": 1
   },
   {
     "nombre": "Iñaki",
@@ -253,6 +277,7 @@
     "experiencia": "Alta",
     "altura_cm": 166,
     "peso_kg": 69,
-    "experiencia_años": 15
+    "experiencia_años": 15,
+    "regatas_temporada": 2
   }
 ]

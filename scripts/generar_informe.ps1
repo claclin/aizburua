@@ -680,10 +680,14 @@ $MareaBM = $cond.marea.bajamar_diurna
 $MareaEst = $(if ($meteoReal.corriente) { $meteoReal.corriente } else { $cond.marea.estado_en_regata })
 
 # Inicialización de tiempos para comparativas
-$sa = TS $aiz.tiempo_raw
-$sg = TS $top1.tiempo_raw
-$s2t = TS $top2.tiempo_raw
-$s3t = TS $top3.tiempo_raw
+$sa = 0.0
+$sg = 0.0
+$s2t = 0.0
+$s3t = 0.0
+if ($aiz)  { $sa = TS $aiz.tiempo_raw }
+if ($top1) { $sg = TS $top1.tiempo_raw }
+if ($top2) { $s2t = TS $top2.tiempo_raw }
+if ($top3) { $s3t = TS $top3.tiempo_raw }
 $avgG1 = TS $mediaG1Fmt
 $avgT1 = TS $mediaT1Fmt
 

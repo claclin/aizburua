@@ -23,6 +23,24 @@ El sistema evalúa a cada remero según el puesto que ocupa en la alineación, n
 
 ---
 
+## 2. Métricas de Rendimiento (Calidad Biomecánica)
+
+Además de las alertas de peso, el sistema cruza estos datos para optimizar la navegación:
+
+### Altura (Optimización de Palanca)
+*   **Uso:** El sistema utiliza la altura para calcular el **Arco de Palada** teórico. 
+*   **Criterio:** Se prioriza a los remeros de mayor estatura en el **bloque central (3-4-5)**. Una mayor altura permite una palada más larga y eficiente, ideal para desplazar la masa de agua en la fase de tracción máxima.
+
+### Experiencia (Eficiencia y Temple)
+*   **Uso:** Define el **Coeficiente de Técnica**.
+*   **Criterio:** El sistema busca "Núcleos de Experiencia" en los extremos del bote. Los remeros con mayor historial de boga son situados preferentemente en la **Bancada 1 (Popa)** y **Bancada 6/Proa** para asegurar un ritmo estable y una técnica depurada en las maniobras de ciaboga.
+
+### Edad (Gestión de Energía)
+*   **Uso:** Predicción de **Vaciado Muscular**.
+*   **Criterio:** El sistema analiza la edad media de los bloques. Si un bloque (ej. Proa) es significativamente más veterano que el de Popa, el sistema advierte sobre una posible descompensación de ritmo en los metros finales de la regata por fatiga acumulada.
+
+---
+
 ## 2. Reglas de Equilibrio Estructural (Trimado)
 
 ### Desequilibrio Lateral (Babor vs Estribor)

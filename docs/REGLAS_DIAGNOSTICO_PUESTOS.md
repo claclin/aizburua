@@ -21,6 +21,11 @@ El sistema evalúa a cada remero según el puesto que ocupa en la alineación, n
 *   **Límite de Edad:** **65 años**.
 *   **Alerta:** El sistema alerta si hay remeros de más de 65 años en el "Motor Central", sugiriendo posiciones de mayor componente técnica (Proa/Popa) para preservar la explosividad del bloque motor.
 
+### Bancada 6 (Apoyo y Estabilización)
+*   **Función:** Nexo de unión entre el bloque motor y la vanguardia. Actúa como el amortiguador lateral del bote.
+*   **Criterio de Peso:** Se vigila que el diferencial entre Babor y Estribor en esta línea no supere los **10 kg**. 
+*   **Alerta:** Debido a su proximidad a la proa, cualquier desequilibrio en la B6 se amplifica en la punta. El sistema lanza una alerta de **Estabilidad de Vanguardia** si los pesos están descompensados, lo que provocaría que el bote "cabecee" de lado en condiciones de mar picada.
+
 ---
 
 ## 2. Métricas de Rendimiento (Calidad Biomecánica)

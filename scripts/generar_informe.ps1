@@ -461,8 +461,9 @@ foreach ($n in 6..1) {
     
     $difBancada = [math]::Abs($rB.Peso - $rE.Peso)
     $alertaEq = ""
-    if ($difBancada -gt 15) {
-        $alertaEq = "<tr><td colspan='3'><div class='tactical-alert'>$svgIcon <strong>ALERTA DE EQUILIBRIO:</strong> Asimetr&iacute;a cr&iacute;tica en Bancada $n ($([math]::Round($difBancada,1)) kg). El bote tiende a escorar hacia $(if($rB.Peso -gt $rE.Peso){"Babor"}else{"Estribor"}).</div></td></tr>"
+    $limiteEq = if ($lbl -match "6") { 10 } else { 15 }
+    if ($difBancada -gt $limiteEq) {
+        $alertaEq = "<tr><td colspan='3'><div class='tactical-alert'>$svgIcon <strong>ALERTA DE EQUILIBRIO:</strong> Asimetr&iacute;a cr&iacute;tica en Bancada $lbl ($([math]::Round($difBancada,1)) kg). El bote tiende a escorar hacia $(if($rB.Peso -gt $rE.Peso){"Babor"}else{"Estribor"}).</div></td></tr>"
     }
 
     [void]$trAli.AppendLine("<tr><td class='bn'>Bancada $lbl</td><td class='bab'>$bCell</td><td class='est'>$eCell</td></tr>")

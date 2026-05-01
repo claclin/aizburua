@@ -23,8 +23,9 @@ El sistema evalúa a cada remero según el puesto que ocupa en la alineación, n
 
 ### Bancada 6 (Apoyo y Estabilización)
 *   **Función:** Nexo de unión entre el bloque motor y la vanguardia. Actúa como el amortiguador lateral del bote.
-*   **Criterio de Peso:** Se vigila que el diferencial entre Babor y Estribor en esta línea no supere los **10 kg**. 
-*   **Alerta:** Debido a su proximidad a la proa, cualquier desequilibrio en la B6 se amplifica en la punta. El sistema lanza una alerta de **Estabilidad de Vanguardia** si los pesos están descompensados, lo que provocaría que el bote "cabecee" de lado en condiciones de mar picada.
+*   **Límite de Peso Individual:** **75 kg** (Siguiendo protocolo v4.6).
+*   **Criterio de Peso Lateral:** Se vigila que el diferencial entre Babor y Estribor en esta línea no supere los **10 kg**. 
+*   **Alerta:** Debido a su proximidad a la proa, cualquier desequilibrio en la B6 se amplifica en la punta. El sistema lanza una alerta si un remero supera los 75kg o si la asimetría entre bandas supera los 10kg.
 
 ---
 

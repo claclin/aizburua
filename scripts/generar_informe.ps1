@@ -30,6 +30,22 @@ function Get-OfficialHcp($avgAge, $distanciaOficial, $womenCount) {
     return [math]::Round(($base + $bonusGenero) * $coef, 1)
 }
 
+function Get-ClubRoot([string]$name) {
+    if (-not $name) { return "---" }
+    $n = $name.ToUpper().Trim()
+    if ($n -match "ITSASOKO AMA" -or $n -match "SANTURTZI") { return "SANTURTZI" }
+    if ($n -match "BADOK") { return "BADOK" }
+    if ($n -match "GETXO") { return "GETXO" }
+    if ($n -match "PLENTZIA") { return "PLENTZIA" }
+    if ($n -match "IBERIA") { return "IBERIA" }
+    if ($n -match "PONTEJOS") { return "PONTEJOS" }
+    if ($n -match "ILLUNBE") { return "ILLUNBE" }
+    if ($n -match "BILBAO") { return "BILBAO" }
+    if ($n -match "AIZBURUA") { return "AIZBURUA" }
+    if ($n -match "MUNDAKA") { return "MUNDAKA" }
+    return $n.Split(" ")[0]
+}
+
 # ---------- Funciones Auxiliares ----------
 function TS([string]$t) {
     if (-not $t) { return 0.0 }
@@ -621,10 +637,10 @@ $g2Gan = if ($g2) { $g2.ganador } else { "" } ; $g2GanRaw = if ($g2) { $g2.tiemp
 $meteoReal = Get-MeteoByTime $aizHora
 $CondVkmh = if ($meteoReal.viento_kmh) { $meteoReal.viento_kmh } else { $cond.viento.velocidad_kmh }
 $CondVms = [math]::Round($CondVkmh / 3.6, 1)
-$CondVdir = if ($meteoReal.viento_dir) { $meteoReal.viento_dir } else { $cond.viento.direccion }
+$CondVdir = $(if ($meteoReal.viento_dir) { $meteoReal.viento_dir } else { $cond.viento.direccion })
 $CondVdesc = "Fuerza $($cond.viento.fuerza_beaufort) Beaufort"
-$CondOla = if ($meteoReal.ola_m) { $meteoReal.ola_m } else { $cond.olas.altura_m }
-$CondMar = if ($meteoReal.ola_desc) { $meteoReal.ola_desc } else { "$($cond.olas.tipo) ($($cond.olas.direccion))" }
+$CondOla = $(if ($meteoReal.ola_m) { $meteoReal.ola_m } else { $cond.olas.altura_m })
+$CondMar = $(if ($meteoReal.ola_desc) { $meteoReal.ola_desc } else { "$($cond.olas.tipo) ($($cond.olas.direccion))" })
 
 $CondAire = $cond.temperatura_aire_c
 $CondAgua = $cond.temperatura_agua_c
@@ -648,7 +664,7 @@ $hcpOficial = TS $aizHcp
 $discrepanciaHcp = [math]::Abs($hcpTeorico - $hcpOficial)
 $alertaHcpHtml = ""
 if ($discrepanciaHcp -gt 0.2) {
-    $alertaHcpHtml = "    `$h.Add('<div class=''tactical-alert'' style=''margin-top:10px; border-left-color:#1e3a5f; background:#f0f4ff''><strong>AUDITOR&Iacute;A DE H&Aacute;NDICAP:</strong> El h&aacute;ndicap asignado ($hcpOficial s) difiere del c&aacute;lculo te&oacute;rico ($hcpTeorico s) seg&uacute;n la tabla oficial de tramos para $($regata.distancia_m)m. Recomienda revisi&oacute;n con el comit&eacute;.</div>')"
+    $alertaHcpHtml = "<div class='tactical-alert' style='margin-top:10px; border-left-color:#1e3a5f; background:#f0f4ff'><strong>AUDITOR&Iacute;A DE H&Aacute;NDICAP:</strong> El h&aacute;ndicap asignado ($hcpOficial s) difiere del c&aacute;lculo te&oacute;rico ($hcpTeorico s) seg&uacute;n la tabla oficial de tramos para $($regata.distancia_m)m. Recomienda revisi&oacute;n con el comit&eacute;.</div>"
 }
 
 # Densidad calculada dinamicamente: agua salada ~1025 + aprox. 0.4 kg/m3 por PSU extra sobre 35
@@ -656,7 +672,16 @@ $CondDens = [math]::Round(1000 + ($CondSal * 0.7) + (0.006 * (1500 - ($CondAgua 
 $CondCoef = $cond.marea.coeficiente
 $MareaPM = $cond.marea.pleamar_1
 $MareaBM = $cond.marea.bajamar_diurna
-$MareaEst = if ($meteoReal.corriente) { $meteoReal.corriente } else { $cond.marea.estado_en_regata }
+$MareaEst = $(if ($meteoReal.corriente) { $meteoReal.corriente } else { $cond.marea.estado_en_regata })
+
+# Inicialización de tiempos para comparativas
+$sa = TS $aiz.tiempo_raw
+$sg = TS $top1.tiempo_raw
+$s2t = TS $top2.tiempo_raw
+$s3t = TS $top3.tiempo_raw
+$avgG1 = TS $mediaG1Fmt
+$avgT1 = TS $mediaT1Fmt
+
 $dG1 = DiffStr $sg $sa    ; $pG1 = PctStr $sg $sa
 $dG2 = DiffStr $s2t $sa   ; $pG2 = PctStr $s2t $sa
 $dG3 = DiffStr $s3t $sa   ; $pG3 = PctStr $s3t $sa
@@ -666,21 +691,6 @@ $dTm1 = DiffStr $avgT1 $sa ; $pTm1 = PctStr $avgT1 $sa
     # ---------- ANALISIS RIVALES DIRECTOS PLAYOFF ----------
     $rivalesNombres = @("SANTURTZI", "ITSASOKO AMA", "PLENTZIA", "BILBAO", "IBERIA", "ILLUNBE", "PONTEJOS")
     
-    # Función para normalizar nombres y permitir sumas entre regatas
-    function Get-ClubRoot([string]$name) {
-        $n = $name.ToUpper()
-        if ($n -match "ITSASOKO AMA" -or $n -match "SANTURTZI") { return "SANTURTZI" }
-        if ($n -match "BADOK") { return "BADOK" }
-        if ($n -match "GETXO") { return "GETXO" }
-        if ($n -match "PLENTZIA") { return "PLENTZIA" }
-        if ($n -match "IBERIA") { return "IBERIA" }
-        if ($n -match "PONTEJOS") { return "PONTEJOS" }
-        if ($n -match "ILLUNBE") { return "ILLUNBE" }
-        if ($n -match "BILBAO") { return "BILBAO" }
-        if ($n -match "AIZBURUA") { return "AIZBURUA" }
-        if ($n -match "MUNDAKA") { return "MUNDAKA" }
-        return $n.Split(" ")[0]
-    }
 
     # Calcular Puntos Acumulados (Getxo + Santurtzi + ...)
     $puntosAcum = @{}
@@ -1036,7 +1046,9 @@ foreach ($gName in $regata.grupos.PSObject.Properties.Name) {
     $h.Add('<div class="tanda-item"><span class="tanda-label">Ganador del Grupo</span><span class="tanda-val">' + $g.ganador + ' (' + $g.tiempo_ganador_raw + ' / ' + $g.tiempo_ganador_final + ')</span></div>')
     
     if ($isAizGroup) {
-        $h.Add('<div class="tanda-item" style="background:rgba(139,0,19,0.08); border-color:rgba(139,0,19,0.2)"><span class="tanda-label" style="color:#8b0013">Aizburua (Datos Salida)</span><span class="tanda-val" style="color:#8b0013">Calle ' + $aizCalle + ' | Salida Individual a las ' + $aizHora + 'h</span></div>')
+        $h.Add('<div class="tanda-item" style="background:rgba(139,0,19,0.08); border-color:rgba(139,0,19,0.2)"><span class="tanda-label" style="color:#8b0013">Aizburua (Datos Salida)</span><span class="tanda-val" style="color:#8b0013">Calle ' + $aizCalle + ' | Salida Individual a las ' + $aizHora + 'h</span>')
+        if ($alertaHcpHtml) { $h.Add($alertaHcpHtml) }
+        $h.Add('</div>')
     }
     $h.Add('</div></div>')
 }

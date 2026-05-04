@@ -16,3 +16,13 @@ Actuar como el núcleo inteligente de auditoría biomecánica del club Aizburua,
 1.  **Cálculo de Hándicap**: Usar siempre la fórmula `(Base Edad + Bonus Mujeres) * Coeficiente Distancia`.
 2.  **Auditoría de Pesos**: Priorizar la Bancada 6 y Proa como zonas críticas de trimado.
 3.  **Generación de Informes**: Usar siempre los scripts `.ps1` y verificar la codificación de caracteres HTML.
+
+## 3. Protocolos de Reporting (v7.1 - Dinámico y Sincronizado)
+1.  **Telemetría Escalable**: Las tablas de rendimiento deben usar bucles basados en `$numLargos` para adaptarse a regatas de 2 o 4 largos sin intervención manual.
+2.  **Métrica de Avance (MpS)**: El cálculo de "Metros por palada" nunca debe ser estático: `(Velocidad en m/s * 60) / Frecuencia Media`.
+3.  **Narrativa Hidrodinámica**: Interpretación automática de `marea` y `estado_en_regata` para asignar términos náuticos dinámicos.
+4.  **Diagnóstico de Trimado**: Resta aritmética `Peso Babor - Peso Estribor` con alertas por diferencial (Leve < 10kg, Crítico > 15kg).
+5.  **Sincronización de Remeros (CRÍTICO)**: Al final de cada informe, ejecutar `Sync-RowerStats` usando rutas absolutas. El matching debe ser agnóstico a la estructura (string/objeto) y soportar apodos/variaciones (J.ANTONIO -> Potxe, I.AKI -> Iñaki).
+6.  **Codificación**: Uso estricto de entidades HTML para caracteres especiales (ñ, tildes, símbolos).
+7.  **Brecha de Vatiaje**: Comparativa contra el "Ganador Absoluto" de la jornada para medir déficit de potencia real.
+

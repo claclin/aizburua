@@ -812,6 +812,224 @@
           "nota_edades": "Alineacion facilitada en la sesion actual."
         }
       }
+    },
+    {
+      "nombre": "TRINTXERPEKO BETERANOEN I. ESTROPADA - ILLUMBE",
+      "nombre_corto": "Illumbe",
+      "modalidad": "contrareloj",
+      "fecha": "2026-05-03",
+      "lugar": "Pasaia (Trintxerpe)",
+      "liga": "Liga AKK",
+      "distancia_m": 3250,
+      "num_largos": 2,
+      "num_ciabogas": 1,
+      "sistema_puntuacion": "handicap",
+      "condiciones_campo": {
+        "geometria": {
+          "eje": "Muelle Trintxerpe -> San Pedro (Interior)",
+          "calle1": {
+            "color": "Unica",
+            "posicion": "Centro"
+          }
+        },
+        "temperatura_aire_c": 20,
+        "viento": {
+          "velocidad_kmh": 19,
+          "direccion": "NW",
+          "fuerza_beaufort": 3
+        },
+        "olas": {
+          "altura_m": 0.4,
+          "direccion": "NW",
+          "tipo": "Rizada (puerto)"
+        },
+        "marea": {
+          "coeficiente": 65,
+          "pleamar_1": "06:13",
+          "bajamar_diurna": "12:12",
+          "estado_en_regata": "Inicio Llenante (Vaciante Residual)"
+        },
+        "evolucion_meteo": [
+          {
+            "hora": "12:00",
+            "viento_kmh": 15,
+            "viento_dir": "NW",
+            "ola_m": 0.3,
+            "corriente": "Vaciante",
+            "desc": "Inicio T1"
+          },
+          {
+            "hora": "12:31",
+            "viento_kmh": 19,
+            "viento_dir": "NW",
+            "ola_m": 0.4,
+            "corriente": "Repunte / Inicio Llenante",
+            "desc": "Salida Aizburua"
+          },
+          {
+            "hora": "12:41",
+            "viento_kmh": 19,
+            "viento_dir": "NW",
+            "ola_m": 0.4,
+            "corriente": "Inicio Llenante",
+            "desc": "Final T2"
+          }
+        ]
+      },
+      "grupos": {
+        "grupo_1": {
+          "hora_inicio": "12:00",
+          "descripcion": "1. Txanda",
+          "total_participantes": 11,
+          "ganador": "CASTRO",
+          "tiempo_ganador_raw": "12:40,86",
+          "tiempo_ganador_final": "12:35,46",
+          "resultados": [
+            { "puesto": 1, "tanda": 1, "calle": 1, "hora_salida": "12:00", "club": "CASTRO", "handicap": "00:05,40", "ciaboga_1": "06:25,0", "tiempo_raw": "12:40,86", "tiempo_final": "12:35,46", "puntos": 11 },
+            { "puesto": 2, "tanda": 1, "calle": 1, "hora_salida": "12:01", "club": "ZUMAIA B", "handicap": "00:26,10", "ciaboga_1": "06:44,0", "tiempo_raw": "13:17,42", "tiempo_final": "12:51,32", "puntos": 10 },
+            { "puesto": 3, "tanda": 1, "calle": 1, "hora_salida": "12:02", "club": "MUNDAKA/BILBAO", "handicap": "00:12,60", "ciaboga_1": "06:33,0", "tiempo_raw": "13:11,37", "tiempo_final": "12:58,77", "puntos": 9 },
+            { "puesto": 4, "tanda": 1, "calle": 1, "hora_salida": "12:03", "club": "BADOK 13 ORIO B", "handicap": "00:21,60", "ciaboga_1": "06:40,0", "tiempo_raw": "13:20,72", "tiempo_final": "12:59,12", "puntos": 8 },
+            { "puesto": 5, "tanda": 1, "calle": 1, "hora_salida": "12:04", "club": "SESTAO A", "handicap": "00:28,80", "ciaboga_1": "06:52,0", "tiempo_raw": "13:39,25", "tiempo_final": "13:10,45", "puntos": 7 },
+            { "puesto": 6, "tanda": 1, "calle": 1, "hora_salida": "12:05", "club": "PONTEJOS B", "handicap": "00:32,40", "ciaboga_1": "07:00,0", "tiempo_raw": "13:45,17", "tiempo_final": "13:12,77", "puntos": 6 },
+            { "puesto": 7, "tanda": 1, "calle": 1, "hora_salida": "12:06", "club": "PLENTZIA B", "handicap": "00:32,40", "ciaboga_1": "07:01,0", "tiempo_raw": "13:53,59", "tiempo_final": "13:21,19", "puntos": 5 },
+            { "puesto": 8, "tanda": 1, "calle": 1, "hora_salida": "12:07", "club": "IBERIA B", "handicap": "00:42,30", "ciaboga_1": "07:08,0", "tiempo_raw": "14:25,05", "tiempo_final": "13:42,75", "puntos": 4 },
+            { "puesto": 9, "tanda": 1, "calle": 1, "hora_salida": "12:08", "club": "ILLUNBE B", "handicap": "01:02,10", "ciaboga_1": "07:37,0", "tiempo_raw": "15:12,59", "tiempo_final": "14:10,49", "puntos": 3 },
+            { "puesto": 10, "tanda": 1, "calle": 1, "hora_salida": "12:09", "club": "GETXO B", "handicap": "00:23,40", "ciaboga_1": "07:25,0", "tiempo_raw": "14:39,93", "tiempo_final": "14:16,53", "puntos": 2 },
+            { "puesto": 11, "tanda": 1, "calle": 1, "hora_salida": "12:10", "club": "SESTAO B", "handicap": "00:30,06", "ciaboga_1": "07:30,0", "tiempo_raw": "15:07,58", "tiempo_final": "14:37,52", "puntos": 1 }
+          ]
+        },
+        "grupo_2": {
+          "hora_inicio": "12:30",
+          "descripcion": "2. Txanda",
+          "total_participantes": 12,
+          "ganador": "BADOK 13 ORIO",
+          "tiempo_ganador_raw": "12:10,39",
+          "tiempo_ganador_final": "11:48,79",
+          "resultados": [
+            { "puesto": 1, "tanda": 2, "calle": 1, "hora_salida": "12:41", "club": "BADOK 13 ORIO", "handicap": "00:21,60", "ciaboga_1": "06:09,0", "tiempo_raw": "12:10,39", "tiempo_final": "11:48,79", "puntos": 12 },
+            { "puesto": 2, "tanda": 2, "calle": 1, "hora_salida": "12:40", "club": "MUNDAKA", "handicap": "00:10,80", "ciaboga_1": "06:12,0", "tiempo_raw": "12:18,98", "tiempo_final": "12:08,18", "puntos": 11 },
+            { "puesto": 3, "tanda": 2, "calle": 1, "hora_salida": "12:39", "club": "GETXO", "handicap": "00:17,10", "ciaboga_1": "06:16,0", "tiempo_raw": "12:25,53", "tiempo_final": "12:08,43", "puntos": 10 },
+            { "puesto": 4, "tanda": 2, "calle": 1, "hora_salida": "12:38", "club": "ZUMAIA", "handicap": "00:32,40", "ciaboga_1": "06:29,0", "tiempo_raw": "12:47,49", "tiempo_final": "12:15,09", "puntos": 9 },
+            { "puesto": 5, "tanda": 2, "calle": 1, "hora_salida": "12:37", "club": "FORTUNA", "handicap": "00:19,80", "ciaboga_1": "06:25,0", "tiempo_raw": "12:40,32", "tiempo_final": "12:20,52", "puntos": 8 },
+            { "puesto": 6, "tanda": 2, "calle": 1, "hora_salida": "12:36", "club": "IBERIA", "handicap": "00:24,30", "ciaboga_1": "06:33,0", "tiempo_raw": "12:51,40", "tiempo_final": "12:27,10", "puntos": 7 },
+            { "puesto": 7, "tanda": 2, "calle": 1, "hora_salida": "12:35", "club": "PONTEJOS", "handicap": "00:19,80", "ciaboga_1": "06:29,0", "tiempo_raw": "12:49,41", "tiempo_final": "12:29,61", "puntos": 6 },
+            { "puesto": 8, "tanda": 2, "calle": 1, "hora_salida": "12:31", "club": "AIZBURUA", "handicap": "00:17,10", "ciaboga_1": "06:30,0", "tiempo_raw": "12:48,50", "tiempo_final": "12:31,40", "puntos": 5 },
+            { "puesto": 9, "tanda": 2, "calle": 1, "hora_salida": "12:34", "club": "PLENTZIA", "handicap": "00:26,10", "ciaboga_1": "06:37,0", "tiempo_raw": "13:00,27", "tiempo_final": "12:34,17", "puntos": 4 },
+            { "puesto": 10, "tanda": 2, "calle": 1, "hora_salida": "12:33", "club": "ILLUNBE", "handicap": "00:14,40", "ciaboga_1": "06:27,0", "tiempo_raw": "12:49,33", "tiempo_final": "12:34,93", "puntos": 3 },
+            { "puesto": 11, "tanda": 2, "calle": 1, "hora_salida": "12:32", "club": "BILBAO", "handicap": "00:14,40", "ciaboga_1": "06:40,0", "tiempo_raw": "13:06,01", "tiempo_final": "12:51,61", "puntos": 2 },
+            { "puesto": 12, "tanda": 2, "calle": 1, "hora_salida": "12:30", "club": "SANTURTZI", "handicap": "00:15,30", "ciaboga_1": "06:46,0", "tiempo_raw": "13:10,22", "tiempo_final": "12:54,92", "puntos": 1 }
+          ]
+        }
+      },
+      "aizburua": {
+        "grupo": "grupo_2",
+        "puesto_en_grupo": 8,
+        "total_en_grupo": 12,
+        "tanda": 2,
+        "calle": 1,
+        "hora_salida": "12:31",
+        "handicap": "00:17,1",
+        "ciaboga_1": "06:30,0",
+        "tiempo_raw": "12:48,50",
+        "tiempo_final": "12:31,40",
+        "analisis": {
+          "tiempo_L1_estimado_s": 390.0,
+          "tiempo_L2_estimado_s": 378.5,
+          "velocidad_L1_ms": 4.16,
+          "velocidad_L2_ms": 4.31,
+          "frecuencia_boga_real": "34-36",
+          "punto_quiebre": "Largo 1 — Resistencia a la vaciante residual.",
+          "penalizacion_calle_estimada_s": 0,
+          "tiempo_proyectado_calle_optima": "12:31,40",
+          "nota_calle": "Excelente trazada del patrón, ahorrando 10 metros sobre el campo oficial.",
+          "veredicto": "La regata en Illumbe se definió por la gestión de la vaciante residual en el primer largo y la capacidad de mantener el planeo en el segundo largo con viento de cara. Aizburua destacó por una trazada milimétrica del patrón que compensó la dureza del bloque motor, aunque la falta de vatios absolutos en el retorno frente a los líderes impidió subir más en el escalafón.",
+          "datos_garmin": {
+            "distancia_real_m": 3240,
+            "distancia_oficial_m": 3250,
+            "desvio_distancia_m": -10,
+            "velocidad_media_kmh": 15.1,
+            "velocidad_maxima_kmh": 17.2,
+            "ritmo_medio": "3:58/km",
+            "tiempo_total": "12:49",
+            "conclusion_desvio": "Ahorro de 10m por trazada óptima (~2.5s ganados).",
+            "analisis_grafica_ritmo": "Radiografía de esfuerzo: Largo 1 marcado por la resistencia de la vaciante residual (ritmo 4:05), gestionado con una frecuencia constante de 34-35 paladas. Ciaboga limpia en 6:30. Largo 2 con aprovechamiento máximo de la corriente a favor (ritmo 3:50) a pesar del viento NW de cara, subiendo a 36 paladas para mantener la inercia hasta meta."
+          }
+        },
+        "alineacion": {
+          "patron": {
+            "nombre": "IÑAKI",
+            "edad": 62
+          },
+          "proa": {
+            "nombre": "J.ANTONIO",
+            "edad": 55
+          },
+          "bancadas": {
+            "1": {
+              "B": {
+                "nombre": "RUBENS",
+                "edad": 61
+              },
+              "E": {
+                "nombre": "JAVIER",
+                "edad": 60
+              }
+            },
+            "2": {
+              "B": {
+                "nombre": "TXEMA",
+                "edad": 51
+              },
+              "E": {
+                "nombre": "IGOR",
+                "edad": 48
+              }
+            },
+            "3": {
+              "B": {
+                "nombre": "JORGE",
+                "edad": 50
+              },
+              "E": {
+                "nombre": "TOMAS",
+                "edad": 59
+              }
+            },
+            "4": {
+              "B": {
+                "nombre": "CLAUDIO",
+                "edad": 53
+              },
+              "E": {
+                "nombre": "MIGUEL",
+                "edad": 50
+              }
+            },
+            "5": {
+              "B": {
+                "nombre": "ASIER",
+                "edad": 55
+              },
+              "E": {
+                "nombre": "FERNANDO",
+                "edad": 50
+              }
+            },
+            "6": {
+              "B": {
+                "nombre": "ROBERTO",
+                "edad": 53
+              },
+              "E": {
+                "nombre": "AINHOA",
+                "edad": 54
+              }
+            }
+          },
+          "edad_media_tripulacion": 54.2,
+          "nota_edades": "Alineacion oficial Regata Illumbe."
+        }
+      }
     }
   ],
   "metadata": {

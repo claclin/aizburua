@@ -1,81 +1,69 @@
-param(
-    [string]$RegataName = "Getxo"
-)
+# --- Configuración de Rutas (v7.1) ---
+$rootPath = Resolve-Path (Join-Path $PSScriptRoot "..")
+$jsonPath = Join-Path $rootPath "data\historico-regatas.json"
+$plantillaPath = Join-Path $rootPath "data\plantilla_remeros.json"
+$remerosImgPath = Join-Path $rootPath "remeros"
+$outPath = Join-Path $rootPath "informes"
 
-$root = Resolve-Path (Join-Path $PSScriptRoot "..")
-$dataPath = "$root\data"
-$informesPath = "$root\informes"
-$remerosImgPath = "$root\remeros"
-
-# Importar datos
-$historico = Get-Content "$dataPath\historico-regatas.json" -Raw -Encoding UTF8 | ConvertFrom-Json
-$remerosDB = Get-Content "$dataPath\plantilla_remeros.json" -Raw -Encoding UTF8 | ConvertFrom-Json
-$regata = $historico.regatas | Where-Object { $_.nombre_corto -eq $RegataName }
+# Importar datos con codificación robusta
+$historico = Get-Content $jsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$remerosDB = Get-Content $plantillaPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$regata = $historico.regatas | Where-Object { $_.nombre_corto -eq $RegataName -or $_.nombre -match $RegataName } | Select-Object -First 1
 
 if (-not $regata) {
-    Write-Error "Regata no encontrada."
+    Write-Host "Error: Regata '$RegataName' no encontrada." -ForegroundColor Red
     return
 }
 
 $aiz = $regata.aizburua
 $ali = $aiz.alineacion
-$meteoGeneral = $regata.condiciones_campo
-$evolucion = $meteoGeneral.evolucion_meteo
 
-# Buscar condiciones especificas
-$horaBoga = $aiz.hora_salida
-$meteoReal = $evolucion | Where-Object { $_.hora -eq $horaBoga -or $_.desc -match "Aizburua" } | Select-Object -First 1
-if (-not $meteoReal) { $meteoReal = $meteoGeneral }
-
-$regataIndex = 0
-for ($i=0; $i -lt $historico.regatas.Count; $i++) {
-    if ($historico.regatas[$i].nombre_corto -eq $RegataName) {
-        $regataIndex = $i + 1
-        break
-    }
-}
-
-# --- L&oacute;gica de Fotos y Nombres ---
+# --- Motor de Datos de Remeros (v7.1) ---
 function Get-RowerFullInfo([string]$name, [string]$posicion) {
-    $displayName = $name
+    if (-not $name) { return $null }
     $cleanName = $name.Replace(".", "").Trim()
-    if ($cleanName -ieq "Gorka") { $displayName = "GizonTxiki" }
-    elseif ($cleanName -ieq "JAntonio" -or $cleanName -ieq "JANTONIO" -or $cleanName -ieq "J.ANTONIO") { $displayName = "Potxe" }
-    elseif ($cleanName -ieq "FJavier") { $displayName = "Jabier" }
-    elseif ($cleanName -ieq "Fernando") { $displayName = "Fer" }
-    elseif ($cleanName -ieq "I&ntilde;aki" -or $cleanName -ieq "I&ntilde;aki") { $displayName = "I&ntilde;aki" }
-    if ($cleanName -ieq "Maite") {
-        if ($posicion -eq "Babor") { $displayName = "Maite Zarra" }
-        else { $displayName = "Maite" }
-    }
     
-    # Buscar en DB para m&eacute;tricas con l&oacute;gica flexible
-    $rower = $remerosDB | Where-Object { $_.nombre.Replace(".", "").Trim() -ieq $cleanName -or $_.apodo -ieq $cleanName } | Select-Object -First 1
-    $peso = 0.0 ; $altura = 0 ; $anios = 0 ; $genero = "Hombre" ; $expNivel = ""
+    # Busqueda con desambiguacion y matching robusto
+    $rower = $null
+    if ($cleanName -ieq "Maite") {
+        if ($posicion -ieq "Babor") { $rower = $remerosDB | Where-Object { $_.nombre -ieq "Maite Zarra" } }
+        else { $rower = $remerosDB | Where-Object { $_.nombre -ieq "Maite" -and $_.posicion -ieq "Estribor" } }
+    }
+    else {
+        $rower = $remerosDB | Where-Object { 
+            ($_.nombre.Replace(".", "").Trim() -ieq $cleanName) -or 
+            ($_.PSObject.Properties['apodo'] -and $_.apodo -ieq $cleanName) -or
+            ($cleanName -match "POTXE|J\.ANTONIO" -and ($_.apodo -eq "Potxe" -or $_.nombre -match "Antonio")) -or
+            ($cleanName -match "JABIER" -and ($_.apodo -eq "Jabier" -or $_.nombre -match "Javier")) -or
+            ($cleanName -match "I.AKI" -and $_.nombre -match "Iñaki")
+        } | Select-Object -First 1
+    }
+
+    $displayName = $name
+    $peso = 78.0 ; $altura = 175 ; $anios = 0 ; $genero = "Hombre" ; $expNivel = "" ; $apodo = ""
+
     if ($rower) {
+        if ($rower.PSObject.Properties['apodo'] -and $rower.apodo) { 
+            $apodo = $rower.apodo
+            $displayName = $rower.apodo 
+        }
         try {
-            if ($rower.PSObject.Properties['altura_cm'] -and $rower.altura_cm -match '^\d') { $altura = [double]$rower.altura_cm }
-            if ($rower.PSObject.Properties['peso_kg'] -and $rower.peso_kg -match '^\d') { $peso = [double]$rower.peso_kg }
-            if ($rower.PSObject.Properties['genero'] -and $rower.genero) { $genero = $rower.genero }
-            if ($rower.PSObject.Properties['experiencia'] -and $rower.experiencia) { $expNivel = $rower.experiencia }
+            if ($rower.PSObject.Properties['altura_cm']) { $altura = [double]$rower.altura_cm }
+            if ($rower.PSObject.Properties['peso_kg']) { $peso = [double]$rower.peso_kg }
+            if ($rower.PSObject.Properties['genero']) { $genero = $rower.genero }
+            if ($rower.PSObject.Properties['experiencia']) { $expNivel = $rower.experiencia }
             $propAnios = $rower.PSObject.Properties | Where-Object { $_.Name -match 'experiencia' -and ($_.Name -match 'a.os' -or $_.Name -match 'anios') } | Select-Object -First 1
-            if ($propAnios -and ($propAnios.Value -as [double] -ge 0)) { $anios = [double]$propAnios.Value }
+            if ($propAnios) { $anios = [double]$propAnios.Value }
         } catch { }
     }
 
     $imgBase64 = ""
-    $possibleFiles = @("$displayName.jpg", "$cleanName.jpg", "$name.jpg", "I&ntilde;aki.jpg")
-    foreach ($f in $possibleFiles) {
-        $path = Join-Path $remerosImgPath $f
-        if (Test-Path $path) {
-            $bytes = [System.IO.File]::ReadAllBytes($path)
-            $imgBase64 = [Convert]::ToBase64String($bytes)
-            break
-        }
+    $photoName = if ($apodo) { $apodo } else { $cleanName }
+    $photoPath = Join-Path $remerosImgPath "$photoName.jpg"
+    if (Test-Path $photoPath) {
+        $bytes = [System.IO.File]::ReadAllBytes($photoPath)
+        $imgBase64 = [Convert]::ToBase64String($bytes)
     }
-    # --- Perfil Est&aacute;ndar para Datos Nulos (v4.2) ---
-    if ($peso -le 0)   { $peso = 78.0 }   # Peso est&aacute;ndar Aizburua
-    if ($altura -le 0) { $altura = 175 }  # Altura est&aacute;ndar Aizburua
 
     return [PSCustomObject]@{
         DisplayName = $displayName.ToUpper()
@@ -103,7 +91,6 @@ function Get-HcpFromTable([double]$avg, [int]$distanciaM, [int]$numMujeres45) {
         61=35; 62=39; 63=43; 64=47; 65=51
     }
 
-    $hcpTabla = if ($v -ge 45 -and $tabla.ContainsKey([int]$v)) { $tabla[[int]$v] } elseif ($v -ge 65) { 50 + ($v - 65) * 4 } else { 0 }
     $baseHcp = if ($v -ge 45 -and $tabla.ContainsKey([int]$v)) { $tabla[[int]$v] } elseif ($v -ge 65) { 50 + ($v - 65) * 4 } else { 0 }
     
     # Sumar bonificacion de genero: +5s PLANOS por cada mujer >= 45 en la alineacion
@@ -170,13 +157,13 @@ $numMujeres45 = 0
 $pesosBabor = @() ; $pesosEstribor = @() ; $pesosTotal = @()
 $tallasMotor = @() ; $tallasExtremos = @()
 
-function Process-Rower($nombre, $pos, $side, $edad) {
+function Invoke-RowerProcessing($nombre, $pos, $side, $edad) {
+    if (-not $nombre) { return }
     if ($edad) {
         $script:edadesReales += $edad
-        $script:edadesComputo += $edad   # todos cuentan en la media para el HCP
-        # Detectar mujeres >= 45 para bonificacion ABE de genero
+        $script:edadesComputo += $edad
         if ($edad -ge 45) {
-            $r = $remerosDB | Where-Object { $_.nombre -eq $nombre } | Select-Object -First 1
+            $r = $remerosDB | Where-Object { $_.nombre -eq $nombre -or $_.apodo -eq $nombre } | Select-Object -First 1
             if ($r -and $r.genero -match "Mujer") { $script:numMujeres45++ }
         }
     }
@@ -192,11 +179,25 @@ function Process-Rower($nombre, $pos, $side, $edad) {
     }
 }
 
-Process-Rower $ali.proa.nombre "Proa" "Proa" $ali.proa.edad
-Process-Rower $ali.patron.nombre "Patron" "Patron" $ali.patron.edad
-foreach ($n in 1..6) {
-    Process-Rower $ali.bancadas."$n".B.nombre "Bancada $n" "Babor" $ali.bancadas."$n".B.edad
-    Process-Rower $ali.bancadas."$n".E.nombre "Bancada $n" "Estribor" $ali.bancadas."$n".E.edad
+# Procesar alineacion (v7.1 - Dual Format)
+if ($ali.bancadas) {
+    # Proa y Patron
+    if ($ali.patron) { Invoke-RowerProcessing (if($ali.patron.nombre){$ali.patron.nombre}else{$ali.patron}) "Patron" "Patron" (if($ali.patron.edad){$ali.patron.edad}else{60}) }
+    if ($ali.proa)   { Invoke-RowerProcessing (if($ali.proa.nombre){$ali.proa.nombre}else{$ali.proa}) "Proa" "Proa" (if($ali.proa.edad){$ali.proa.edad}else{50}) }
+    # Bancadas
+    foreach ($n in $ali.bancadas.PSObject.Properties.Name) {
+        $b = $ali.bancadas.$n
+        if ($b.B) { Invoke-RowerProcessing (if($b.B.nombre){$b.B.nombre}else{$b.B}) "Bancada $n" "Babor" (if($b.B.edad){$b.B.edad}else{55}) }
+        if ($b.E) { Invoke-RowerProcessing (if($b.E.nombre){$b.E.nombre}else{$b.E}) "Bancada $n" "Estribor" (if($b.E.edad){$b.E.edad}else{55}) }
+    }
+} else {
+    # Retrocompatibilidad
+    if ($ali.proa) { Invoke-RowerProcessing $ali.proa.nombre "Proa" "Proa" $ali.proa.edad }
+    if ($ali.patron) { Invoke-RowerProcessing $ali.patron.nombre "Patron" "Patron" $ali.patron.edad }
+    foreach ($n in 1..6) {
+        if ($ali.babor."$n") { Invoke-RowerProcessing $ali.babor."$n" "Bancada $n" "Babor" 55 }
+        if ($ali.estribor."$n") { Invoke-RowerProcessing $ali.estribor."$n" "Bancada $n" "Estribor" 55 }
+    }
 }
 
 $avgEdadReal = if ($edadesReales.Count -gt 0) { ($edadesReales | Measure-Object -Average).Average } else { 0 }
@@ -212,8 +213,8 @@ $avgTallaExt = if ($tallasExtremos.Count -gt 0) { ($tallasExtremos | Measure-Obj
 
 # --- CARGA DE LOGOTIPOS ---
 $logo1Base64 = "" ; $logo2Base64 = ""
-$logo1Path = Join-Path $root "Logo1.jpg"
-$logo2Path = Join-Path $root "Logo2.jpg"
+$logo1Path = Join-Path $rootPath "Logo1.jpg"
+$logo2Path = Join-Path $rootPath "Logo2.jpg"
 
 if (Test-Path $logo1Path) {
     $bytes = [System.IO.File]::ReadAllBytes($logo1Path)
@@ -225,58 +226,46 @@ if (Test-Path $logo2Path) {
 }
 
 # --- GENERACION HTML ---
-$htmlFile = "$informesPath\Comparativa_Optimizacion_$RegataName.html"
+$htmlFile = Join-Path $outPath "Comparativa_Optimizacion_$RegataName.html"
 $h = [System.Collections.Generic.List[string]]::new()
-$script:usedPhrases = @{}  # Tracking para unicidad absoluta v5.5
-$script:seatsNeedingCascade = @()  # Tracking dinamico de asientos que requieren cascada
+$script:usedPhrases = @{}
+$script:seatsNeedingCascade = @()
 
 $h.Add("<!DOCTYPE html><html lang='es'><head><meta charset='UTF-8'><title>Estudio de Evoluci&oacute;n - Aizburua</title>")
 $h.Add("<style>
-    :root { --r: #C0001A; --b: #1a1e2e; --w: #ffffff; --lg: #f3f4f6; }
-    body { font-family: 'Inter', -apple-system, sans-serif; background: #e5e7eb; margin: 0; color: #1e293b; }
-    .header { background: linear-gradient(90deg, #0b1120 0%, #1e293b 100%); color: white; padding: 40px 60px; border-bottom: 6px solid var(--r); display: flex; justify-content: space-between; align-items: center; }
+    :root { --r: #C0001A; --b: #1e293b; --w: #ffffff; --lg: #f8fafc; --border: #cbd5e1; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: #f1f5f9; margin: 0; color: #1e293b; }
+    .header { background: linear-gradient(90deg, #0f172a 0%, #1e293b 100%); color: white; padding: 40px 60px; border-bottom: 6px solid var(--r); display: flex; justify-content: space-between; align-items: center; }
     .header-logo { display: flex; align-items: center; gap: 20px; }
     .logo-header { height: 75px; width: auto; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4)); }
-    .logo-footer { height: 45px; width: auto; opacity: 0.8; filter: grayscale(1) brightness(3); }
     .header-title h1 { margin: 0; font-size: 32px; text-transform: uppercase; letter-spacing: 3px; font-weight: 900; }
     .header-title p { margin: 5px 0 0; font-size: 14px; opacity: 0.8; letter-spacing: 2px; }
     .main { padding: 40px; width: 95%; max-width: 1600px; margin: 0 auto; }
     .metric-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 25px; margin-bottom: 40px; }
-    .metric-card { background: white; border-radius: 15px; padding: 35px; border-top: 8px solid var(--r); box-shadow: 0 4px 25px rgba(0,0,0,0.1); }
-    .m-label { font-size: 12px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 12px; }
-    .m-value { font-size: 42px; font-weight: 900; color: #0f172a; }
-    .section-title { font-size: 24px; font-weight: 900; margin: 80px 0 30px; text-transform: uppercase; border-left: 8px solid var(--r); padding-left: 25px; color: #1e293b; }
-    .card-table { background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.15); width: 100%; margin-bottom: 40px; }
+    .metric-card { background: white; border-radius: 12px; padding: 30px; border-top: 6px solid var(--r); box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    .m-label { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; margin-bottom: 8px; }
+    .m-value { font-size: 36px; font-weight: 900; color: #0f172a; }
+    .section-title { font-size: 22px; font-weight: 900; margin: 60px 0 25px; text-transform: uppercase; border-left: 6px solid var(--r); padding-left: 20px; color: #0f172a; }
+    .card-table { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 100%; margin-bottom: 40px; border: 1px solid var(--border); }
     table { width: 100%; border-collapse: collapse; }
-    thead th { background: #1e293b; color: white; text-align: left; padding: 25px; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; }
-    tbody td { padding: 25px; border-bottom: 1px solid #f1f5f9; font-size: 17px; vertical-align: middle; }
-    .rower-info { display: flex; align-items: center; gap: 20px; }
-    .avatar { width: 80px; height: 80px; border-radius: 12px; object-fit: cover; background: #eee; border: 2px solid #ddd; }
-    .r-name { font-weight: 900; color: #0f172a; font-size: 18px; text-transform: uppercase; }
-    .badge { padding: 6px 15px; border-radius: 6px; font-size: 12px; font-weight: 900; text-transform: uppercase; }
-    .b-bab { background: #e0f2fe; color: #0369a1; }
-    .b-est { background: #dcfce7; color: #15803d; }
-    .lit-text { font-size: 18px; line-height: 1.6; color: #334155; font-weight: 500; text-align: justify; }
-    .legend-box { background: #1e293b; color: white; border-radius: 15px; padding: 35px; margin: 30px 0 60px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
-    .legend-item b { color: var(--r); display: block; margin-bottom: 8px; font-size: 15px; text-transform: uppercase; letter-spacing: 1px; }
-    .legend-item p { margin: 0; font-size: 14px; opacity: 0.9; line-height: 1.4; text-align: justify; }
-    .clima-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 30px; }
-    .clima-item { background: white; padding: 20px; border-radius: 12px; border-top: 5px solid #cbd5e1; }
-    .clima-item.active { border-top-color: #0ea5e9; background: #f0f9ff; }
-    .clima-item h4 { margin: 0 0 10px; text-transform: uppercase; font-size: 14px; color: #64748b; }
-    .clima-item p { margin: 0; font-size: 14px; line-height: 1.4; color: #1e293b; }
-    .benchmark-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; }
-    .bench-card { background: #f8fafc; padding: 15px; border-radius: 10px; border-left: 4px solid #cbd5e1; font-size: 14px; }
-    .bench-card.winner { border-left-color: #f59e0b; background: #fffbeb; }
-    .foundation-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 25px; margin-bottom: 25px; }
-    .foundation-card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border-left: 10px solid var(--r); display: flex; flex-direction: column; width: 100%; box-sizing: border-box; }
-    .foundation-card.full-width { grid-column: 1 / -1; }
-    .foundation-card h3 { color: var(--b); margin-top: 0; font-size: 20px; text-transform: uppercase; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 15px; }
-    .foundation-card p { font-size: 16px; line-height: 1.6; color: #475569; text-align: justify; margin: 0; }
-    .opt-box { background: #fff0f2; border: 2px solid var(--r); border-radius: 15px; padding: 35px; margin-bottom: 40px; width: 100%; box-sizing: border-box; }
-    .tactical-alert { background: #fef2f2; border-left: 6px solid var(--r); padding: 16px 20px; border-radius: 8px; margin-top: 15px; color: #991b1b; font-size: 15px; font-weight: 500; line-height: 1.6; display: flex; align-items: flex-start; gap: 14px; box-shadow: 0 2px 10px rgba(192, 0, 26, 0.08); }
-    .alert-icon { flex-shrink: 0; margin-top: 2px; }
-    .footer { background: #0f172a; color: white; padding: 80px; text-align: center; margin-top: 100px; border-top: 15px solid var(--r); }
+    thead th { background: #f8fafc; color: #475569; text-align: left; padding: 20px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid var(--border); }
+    tbody td { padding: 20px; border-bottom: 1px solid #f1f5f9; font-size: 16px; vertical-align: middle; }
+    .rower-info { display: flex; align-items: center; gap: 15px; }
+    .avatar { width: 70px; height: 70px; border-radius: 10px; object-fit: cover; background: #f1f5f9; border: 1px solid #e2e8f0; }
+    .r-name { font-weight: 800; color: #0f172a; font-size: 17px; text-transform: uppercase; }
+    .badge { padding: 5px 12px; border-radius: 4px; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+    .b-bab { background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; }
+    .b-est { background: #f0fdf4; color: #15803d; border: 1px solid #dcfce7; }
+    .legend-box { background: #0f172a; color: white; border-radius: 12px; padding: 30px; margin: 30px 0 60px; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; }
+    .legend-item b { color: #f87171; display: block; margin-bottom: 5px; font-size: 14px; text-transform: uppercase; }
+    .clima-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
+    .clima-item { background: white; padding: 20px; border-radius: 10px; border: 1px solid var(--border); border-top: 4px solid #94a3b8; }
+    .clima-item.active { border-top-color: #3b82f6; background: #f0f9ff; }
+    .foundation-card { background: white; padding: 25px; border-radius: 12px; border-left: 8px solid var(--r); box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; border-left: 8px solid var(--r); }
+    .foundation-card h3 { color: #0f172a; margin-top: 0; font-size: 18px; text-transform: uppercase; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
+    .opt-box { background: #fff1f2; border: 1px solid #fecaca; border-radius: 12px; padding: 30px; margin-bottom: 40px; }
+    .tactical-alert { background: white; border: 1px solid #fecaca; border-left: 5px solid #ef4444; padding: 15px; border-radius: 6px; margin-top: 12px; color: #991b1b; display: flex; gap: 12px; }
+    .footer { background: #0f172a; color: #94a3b8; padding: 60px; text-align: center; margin-top: 80px; border-top: 10px solid var(--r); }
 </style></head><body>")
 
 # HEADER
@@ -1357,17 +1346,85 @@ if (-not $mostrarAiz -and $aizResult) {
 }
 $h.Add("</div><div style='margin-top:40px; border-top:3px solid #f1f5f9; padding-top:30px; background: #fef2f2; padding: 25px; border-radius: 12px; border-left: 8px solid var(--r)'><strong style='font-size:22px; color:var(--r)'>Dictamen Final de Direcci&oacute;n T&eacute;cnica:</strong><br><br>Con una tripulaci&oacute;n de <strong>$totalPeso kg</strong>, la clave es la eficiencia hidrodin&aacute;mica. Debemos aprovechar la veteran&iacute;a para mantener el rumbo en condiciones de viento cruzado, compensando el desequilibrio de <strong>$([math]::Round($difPeso, 1)) kg</strong> mediante una sincron&iacute;a perfecta en la entrada de la pala.</div></div>")
 
+# --- SINCRONIZACION AUTOMATICA DE ESTADISTICAS (v7.1) ---
+function Sync-RowerStats {
+    param([string]$remerosFile, [string]$historicoFile)
+    
+    if (-not (Test-Path $remerosFile) -or -not (Test-Path $historicoFile)) { return }
+    
+    $remeros = Get-Content $remerosFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    $historico = Get-Content $historicoFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    
+    foreach ($r in $remeros) {
+        if (-not $r.PSObject.Properties['regatas_temporada']) {
+            $r | Add-Member -MemberType NoteProperty -Name 'regatas_temporada' -Value 0 -Force
+        } else { $r.regatas_temporada = 0 }
+    }
+
+    foreach ($reg in $historico.regatas) {
+        if (-not $reg.aizburua -or -not $reg.aizburua.alineacion) { continue }
+        $nombresEnRegata = @()
+        $aliReg = $reg.aizburua.alineacion
+        
+        $extract = {
+            param($obj)
+            if (-not $obj) { return $null }
+            if ($obj -is [string]) { return $obj.ToUpper().Trim() }
+            if ($obj.nombre) { return $obj.nombre.ToUpper().Trim() }
+            return $null
+        }
+
+        # Patron y Proa
+        $p = &$extract $aliReg.patron ; if ($p) { $nombresEnRegata += $p }
+        $pr = &$extract $aliReg.proa ; if ($pr) { $nombresEnRegata += $pr }
+        
+        # Bancadas
+        if ($aliReg.bancadas) {
+            foreach ($bNum in $aliReg.bancadas.PSObject.Properties.Name) {
+                $bn = $aliReg.bancadas.$bNum
+                $b = &$extract $bn.B ; if ($b) { $nombresEnRegata += $b }
+                $e = &$extract $bn.E ; if ($e) { $nombresEnRegata += $e }
+            }
+        }
+        
+        # Retrocompatibilidad
+        foreach ($banda in @('babor', 'estribor')) {
+            if ($aliReg.$banda) {
+                foreach ($prop in $aliReg.$banda.PSObject.Properties) {
+                    $n = &$extract $prop.Value ; if ($n) { $nombresEnRegata += $n }
+                }
+            }
+        }
+
+        $nombresEnRegata = $nombresEnRegata | Select-Object -Unique
+
+        foreach ($nom in $nombresEnRegata) {
+            $match = $remeros | Where-Object { 
+                ($_.nombre.ToUpper().Trim() -eq $nom) -or 
+                ($_.PSObject.Properties['apodo'] -and $_.apodo.ToUpper().Trim() -eq $nom) -or
+                ($nom -match "POTXE|J\.ANTONIO" -and ($_.apodo -eq "Potxe" -or $_.nombre -match "Antonio")) -or
+                ($nom -match "JABIER" -and ($_.apodo -eq "Jabier" -or $_.nombre -match "Javier")) -or
+                ($nom -match "I.AKI" -and $_.nombre -match "Iñaki")
+            } | Select-Object -First 1
+            if ($match) { $match.regatas_temporada++ }
+        }
+    }
+    $remeros | ConvertTo-Json -Depth 10 | Set-Content $remerosFile -Encoding UTF8
+}
+
 $h.Add("</div>") # Fin main
 $h.Add("<div class='footer'>")
 if ($logo2Base64) {
-    $h.Add("<img src='data:image/jpeg;base64,$logo2Base64' class='logo-footer' alt='Branding Aizburua'>")
+    $h.Add("<img src='data:image/jpeg;base64,$logo2Base64' class='logo-footer' alt='Branding Aizburua' style='height:45px; width:auto; opacity:0.8; filter:grayscale(1) brightness(0.5);'>")
 }
 $h.Add("<p>CLUB AIZBURUA &mdash; SISTEMA DE AN&Aacute;LISIS ESTRAT&Eacute;GICO</p></div></body></html>")
 
+# Ejecutar sincronización antes de cerrar
+Sync-RowerStats -remerosFile $plantillaPath -historicoFile $jsonPath
+
 $content = $h -join "`n"
-$utf8WithBom = New-Object System.Text.UTF8Encoding($true)
-[System.IO.File]::WriteAllText($htmlFile, $content, $utf8WithBom)
-Write-Host "Informe de Evolucion generado: $htmlFile"
+Set-Content -Path $htmlFile -Value $content -Encoding UTF8
+Write-Host "Informe de Evolucion generado: $htmlFile" -ForegroundColor Green
 Invoke-Item $htmlFile
 
 
